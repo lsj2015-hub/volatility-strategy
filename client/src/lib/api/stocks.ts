@@ -10,6 +10,18 @@ import {
   ApiResponse
 } from '@/types';
 
+/**
+ * Helper function to format error messages properly
+ */
+function formatErrorMessage(response: any, fallback: string): string {
+  if (response.error) {
+    return typeof response.error === 'string' ? response.error : JSON.stringify(response.error);
+  } else if (response.message) {
+    return response.message;
+  }
+  return fallback;
+}
+
 export class StocksService {
   /**
    * 주식 필터링 실행
@@ -20,7 +32,13 @@ export class StocksService {
     });
 
     if (!response.success || !response.data) {
-      throw new Error(response.error || 'Failed to filter stocks');
+      let errorMessage = 'Failed to filter stocks';
+      if (response.error) {
+        errorMessage = typeof response.error === 'string' ? response.error : JSON.stringify(response.error);
+      } else if (response.message) {
+        errorMessage = response.message;
+      }
+      throw new Error(errorMessage);
     }
 
     return response.data;
@@ -38,7 +56,13 @@ export class StocksService {
     const response = await apiClient.get<any[]>('/api/stocks/all', params);
 
     if (!response.success || !response.data) {
-      throw new Error(response.error || 'Failed to get stocks');
+      let errorMessage = 'Failed to get stocks';
+      if (response.error) {
+        errorMessage = typeof response.error === 'string' ? response.error : JSON.stringify(response.error);
+      } else if (response.message) {
+        errorMessage = response.message;
+      }
+      throw new Error(errorMessage);
     }
 
     // 백엔드 응답을 프론트엔드 타입에 맞게 변환
@@ -65,7 +89,7 @@ export class StocksService {
     const response = await apiClient.get<StockData>(`/api/stocks/${symbol}`);
 
     if (!response.success || !response.data) {
-      throw new Error(response.error || 'Failed to get stock detail');
+      throw new Error(formatErrorMessage(response, 'Failed to get stock detail'));
     }
 
     return response.data;
@@ -78,7 +102,7 @@ export class StocksService {
     const response = await apiClient.get<any>(`/api/stocks/${symbol}/after-hours`);
 
     if (!response.success || !response.data) {
-      throw new Error(response.error || 'Failed to get after-hours price');
+      throw new Error(formatErrorMessage(response, 'Failed to get after-hours price'));
     }
 
     return response.data;
@@ -94,7 +118,7 @@ export class StocksService {
     const response = await apiClient.get<any[]>('/api/stocks/ranking/volume', params);
 
     if (!response.success || !response.data) {
-      throw new Error(response.error || 'Failed to get volume ranking');
+      throw new Error(formatErrorMessage(response, 'Failed to get volume ranking'));
     }
 
     return response.data;
@@ -109,7 +133,7 @@ export class StocksService {
     });
 
     if (!response.success || !response.data) {
-      throw new Error(response.error || 'Failed to get stock prices');
+      throw new Error(formatErrorMessage(response, 'Failed to get stock prices'));
     }
 
     return response.data;
@@ -122,7 +146,7 @@ export class StocksService {
     const response = await apiClient.post<FilterConditions>('/api/stocks/adjust-conditions', currentConditions);
 
     if (!response.success || !response.data) {
-      throw new Error(response.error || 'Failed to adjust filter conditions');
+      throw new Error(formatErrorMessage(response, 'Failed to adjust filter conditions'));
     }
 
     return response.data;

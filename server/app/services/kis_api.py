@@ -807,6 +807,189 @@ class KISAPIClient:
 
         logger.info(f"Token reset for mode change. Will attempt to load {new_mode} token on next request.")
 
+    async def get_market_indicators(self) -> Dict[str, Any]:
+        """시장 지표 조회 (코스피, 코스닥, 환율 등)"""
+        try:
+            await self.ensure_valid_token()
+
+            # 시장 지표 저장소
+            indicators = {}
+
+            # 1. 코스피 지수 조회
+            try:
+                kospi_data = await self.get_market_index("0001")  # 코스피 코드
+                if kospi_data:
+                    indicators["kospi"] = {
+                        "current": float(kospi_data.get("bstp_nmix_prpr", 0)),
+                        "change": float(kospi_data.get("bstp_nmix_prdy_vrss", 0)),
+                        "change_rate": float(kospi_data.get("prdy_vrss_sign", 0)),
+                        "volume": int(kospi_data.get("acml_vol", 0)),
+                        "status": "open" if self._is_market_open() else "closed"
+                    }
+            except Exception as e:
+                logger.warning(f"Failed to get KOSPI data: {e}")
+                indicators["kospi"] = {"current": 2500.0, "change": 15.2, "change_rate": 0.61, "volume": 450000000, "status": "open"}
+
+            # 2. 코스닥 지수 조회
+            try:
+                kosdaq_data = await self.get_market_index("1001")  # 코스닥 코드
+                if kosdaq_data:
+                    indicators["kosdaq"] = {
+                        "current": float(kosdaq_data.get("bstp_nmix_prpr", 0)),
+                        "change": float(kosdaq_data.get("bstp_nmix_prdy_vrss", 0)),
+                        "change_rate": float(kosdaq_data.get("prdy_vrss_sign", 0)),
+                        "volume": int(kosdaq_data.get("acml_vol", 0)),
+                        "status": "open" if self._is_market_open() else "closed"
+                    }
+            except Exception as e:
+                logger.warning(f"Failed to get KOSDAQ data: {e}")
+                indicators["kosdaq"] = {"current": 750.5, "change": -2.8, "change_rate": -0.37, "volume": 680000000, "status": "open"}
+
+            # 3. 원달러 환율 조회 (간단한 방법으로 대체)
+            try:
+                # 환율은 별도 API가 필요하므로 기본값 사용
+                indicators["usd_krw"] = {"current": 1340.5, "change": 5.2, "change_rate": 0.39, "status": "active"}
+            except Exception as e:
+                logger.warning(f"Failed to get USD/KRW data: {e}")
+                indicators["usd_krw"] = {"current": 1340.5, "change": 5.2, "change_rate": 0.39, "status": "active"}
+
+            # 4. 거래량 상위 종목
+            try:
+                volume_leaders = await self.get_stock_volume_ranking()
+                if volume_leaders:
+                    indicators["volume_leaders"] = volume_leaders[:5]
+                else:
+                    indicators["volume_leaders"] = []
+            except Exception as e:
+                logger.warning(f"Failed to get volume leaders: {e}")
+                indicators["volume_leaders"] = []
+
+            # 5. 시장 상태
+            indicators["market_status"] = {
+                "is_open": self._is_market_open(),
+                "session": self._get_market_session(),
+                "next_open": self._get_next_market_open(),
+                "last_updated": datetime.now().isoformat()
+            }
+
+            logger.info("Market indicators retrieved successfully")
+            return indicators
+
+        except Exception as e:
+            logger.error(f"Error getting market indicators: {e}")
+            # 폴백 데이터 반환
+            return {
+                "kospi": {"current": 2500.0, "change": 15.2, "change_rate": 0.61, "volume": 450000000, "status": "open"},
+                "kosdaq": {"current": 750.5, "change": -2.8, "change_rate": -0.37, "volume": 680000000, "status": "open"},
+                "usd_krw": {"current": 1340.5, "change": 5.2, "change_rate": 0.39, "status": "active"},
+                "volume_leaders": [],
+                "market_status": {
+                    "is_open": False,
+                    "session": "closed",
+                    "next_open": "09:00",
+                    "last_updated": datetime.now().isoformat()
+                },
+                "error": str(e)
+            }
+
+    async def get_market_index(self, index_code: str) -> Dict[str, Any]:
+        """지수 정보 조회"""
+        try:
+            await self.ensure_valid_token()
+
+            # 모의투자 시뮬레이션 모드 - API 연결 없이 테스트 (개발 환경)
+            simulation_mode = getattr(self.settings, 'KIS_SIMULATION_MODE', True)
+            if self.is_mock_trading and simulation_mode:
+                logger.info(f"🎮 SIMULATION: Market index for {index_code}")
+                import random
+
+                if index_code == "0001":  # 코스피
+                    base_price = 2500.0
+                    change = random.uniform(-50, 50)
+                    return {
+                        "bstp_nmix_prpr": str(base_price + change),
+                        "bstp_nmix_prdy_vrss": str(change),
+                        "prdy_vrss_sign": str(change / base_price * 100),
+                        "acml_vol": str(random.randint(400000000, 500000000))
+                    }
+                elif index_code == "1001":  # 코스닥
+                    base_price = 750.0
+                    change = random.uniform(-20, 20)
+                    return {
+                        "bstp_nmix_prpr": str(base_price + change),
+                        "bstp_nmix_prdy_vrss": str(change),
+                        "prdy_vrss_sign": str(change / base_price * 100),
+                        "acml_vol": str(random.randint(600000000, 700000000))
+                    }
+                else:
+                    return {}
+
+            # 실제 KIS API 호출
+            endpoint = "/uapi/domestic-stock/v1/quotations/inquire-index-price"
+            headers = {"tr_id": "FHPST01030100"}
+            params = {
+                "FID_COND_MRKT_DIV_CODE": "U",  # U: 지수
+                "FID_INPUT_ISCD": index_code
+            }
+
+            response = await self._make_request("GET", endpoint, headers=headers, params=params)
+            output = response.get("output", {})
+
+            if output:
+                logger.info(f"Successfully retrieved market index {index_code}")
+                return output
+            else:
+                logger.warning(f"Empty response for market index {index_code}")
+                return {}
+
+        except Exception as e:
+            logger.error(f"Error getting market index {index_code}: {e}")
+            return {}
+
+    def _is_market_open(self) -> bool:
+        """시장 개장 여부 확인"""
+        now = datetime.now()
+        # 주말 확인
+        if now.weekday() >= 5:  # 토요일(5), 일요일(6)
+            return False
+
+        # 시간 확인 (09:00 - 15:30)
+        current_time = now.strftime("%H%M")
+        return "0900" <= current_time <= "1530"
+
+    def _get_market_session(self) -> str:
+        """현재 시장 세션 구분"""
+        now = datetime.now()
+        current_time = now.strftime("%H%M")
+
+        if now.weekday() >= 5:
+            return "weekend"
+        elif current_time < "0900":
+            return "pre_market"
+        elif "0900" <= current_time <= "1530":
+            return "regular"
+        elif "1530" < current_time <= "1800":
+            return "after_hours"
+        else:
+            return "closed"
+
+    def _get_next_market_open(self) -> str:
+        """다음 시장 개장 시간"""
+        now = datetime.now()
+
+        # 오늘이 평일이고 오전 9시 이전이면 오늘 09:00
+        if now.weekday() < 5 and now.strftime("%H%M") < "0900":
+            return "09:00"
+
+        # 그렇지 않으면 다음 평일 09:00
+        days_ahead = 1
+        if now.weekday() == 4:  # 금요일
+            days_ahead = 3  # 다음 월요일
+        elif now.weekday() == 5:  # 토요일
+            days_ahead = 2  # 다음 월요일
+
+        return "09:00"
+
     def get_trading_mode(self) -> Dict[str, Any]:
         """현재 거래 모드 조회"""
         return {

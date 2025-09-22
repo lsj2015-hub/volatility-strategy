@@ -10,7 +10,7 @@ from typing import Dict, List, Optional, Callable
 from dataclasses import dataclass
 from enum import Enum
 
-from ...api.websocket import send_session_status, send_order_update
+from ...api.websocket import send_session_status, send_order_update, send_price_update, send_buy_signal, send_monitoring_status_update, manager
 from ...services.kis_api import KISAPIClient
 from .threshold_adjuster import ThresholdAdjuster
 
@@ -236,9 +236,23 @@ class AfterHoursSessionManager:
 
                 if price_data:
                     # 가격 정보 업데이트
+                    old_price = target.current_price
                     target.current_price = price_data["current_price"]
                     target.change_percent = price_data["change_percent"]
                     target.volume = price_data.get("volume", target.volume)
+
+                    # WebSocket으로 실시간 가격 업데이트 전송 (가격이 변경된 경우에만)
+                    if old_price != target.current_price and manager.active_connections:
+                        try:
+                            await send_price_update(
+                                symbol=symbol,
+                                price=target.current_price,
+                                change=target.current_price - target.entry_price,
+                                change_percent=target.change_percent,
+                                volume=target.volume
+                            )
+                        except Exception as e:
+                            logger.debug(f"Failed to send price update via WebSocket: {e}")
 
                     # 매수 조건 확인
                     if target.change_percent >= target.buy_threshold:
@@ -253,6 +267,18 @@ class AfterHoursSessionManager:
         target.trigger_time = datetime.now()
 
         logger.info(f"🎯 Buy signal triggered: {target.symbol} ({target.stock_name}) - {target.change_percent:.2f}%")
+
+        # WebSocket으로 매수 신호 전송
+        if manager.active_connections:
+            try:
+                await send_buy_signal(
+                    symbol=target.symbol,
+                    price=target.current_price,
+                    quantity=1,  # 기본값, 실제로는 포트폴리오에서 계산
+                    reason=f"Threshold reached: {target.change_percent:.2f}% >= {target.buy_threshold:.2f}%"
+                )
+            except Exception as e:
+                logger.debug(f"Failed to send buy signal via WebSocket: {e}")
 
         # 신호 처리기에 전달
         try:
@@ -329,6 +355,7 @@ class AfterHoursSessionManager:
         """세션 상태 업데이트 전송"""
         status = await self.get_session_status()
 
+        # 기존 세션 상태 업데이트
         await send_session_status(
             day="monitoring",
             phase=status.current_phase.value,
@@ -336,6 +363,35 @@ class AfterHoursSessionManager:
             next_action=self._get_next_action(),
             next_action_time=status.next_phase_time.strftime('%H:%M') if status.next_phase_time else None
         )
+
+        # WebSocket으로 모니터링 상태 업데이트 전송 (클라이언트에 맞는 형식)
+        if manager.active_connections:
+            try:
+                monitoring_status_data = {
+                    "is_running": status.is_running,
+                    "current_phase": status.current_phase.value,
+                    "phase_start_time": status.phase_start_time.isoformat(),
+                    "next_phase_time": status.next_phase_time.strftime('%H:%M') if status.next_phase_time else None,
+                    "monitoring_targets": [
+                        {
+                            "symbol": target.symbol,
+                            "stock_name": target.stock_name,
+                            "entry_price": target.entry_price,
+                            "current_price": target.current_price,
+                            "change_percent": target.change_percent,
+                            "volume": target.volume,
+                            "buy_threshold": target.buy_threshold,
+                            "is_triggered": target.is_triggered,
+                            "trigger_time": target.trigger_time.isoformat() if target.trigger_time else None
+                        } for target in status.monitoring_targets
+                    ],
+                    "total_targets": status.total_targets,
+                    "triggered_count": status.triggered_count,
+                    "remaining_time_seconds": int(status.remaining_time.total_seconds())
+                }
+                await send_monitoring_status_update(monitoring_status_data)
+            except Exception as e:
+                logger.debug(f"Failed to send monitoring status update via WebSocket: {e}")
 
     def _determine_current_phase(self, current_time: time) -> SessionPhase:
         """현재 시간을 기준으로 세션 단계 결정"""

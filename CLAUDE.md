@@ -382,11 +382,11 @@ def set_trading_mode(self, is_mock: bool) -> None:
   - [x] Real-time allocation calculation
   - [x] Custom allocation with automatic remainder distribution
 
-- [ ] **Portfolio Validation** (`src/components/portfolio/`)
-  - [ ] Risk level indicators
-  - [ ] Diversification analysis
-  - [ ] Compliance checks (max positions, etc.)
-  - [ ] Confirmation dialog before submission
+- [x] **Portfolio Validation** (`src/components/portfolio/`)
+  - [x] Risk level indicators
+  - [x] Diversification analysis
+  - [x] Compliance checks (max positions, etc.)
+  - [x] Confirmation dialog before submission
 
 ### Phase 5: Real-time Monitoring (Day 1: 16:00-17:40)
 - [x] **After-hours Monitoring** (`src/app/monitoring/page.tsx`)
@@ -394,18 +394,27 @@ def set_trading_mode(self, is_mock: bool) -> None:
   - [x] Selected stocks price tracking
   - [x] Buy condition threshold visualization
   - [x] Automatic buy execution notifications
+  - [x] Session start/stop controls with error handling
+  - [x] Real-time monitoring status display
 
-- [ ] **Real-time Components** (`src/components/monitoring/`)
-  - [ ] Live price ticker display
-  - [ ] Progress timeline (16:00 → 16:30 → 17:00 → 17:30)
-  - [ ] Threshold adjustment controls
-  - [ ] Buy signal alerts and confirmations
+- [x] **Real-time Components** (`src/components/monitoring/`)
+  - [x] Session control buttons (start/stop)
+  - [x] Live monitoring status display
+  - [x] Threshold adjustment interface
+  - [x] Auto-adjustment strategy selection
+  - [x] Performance statistics display
+  - [x] Target stock monitoring table
+  - [x] Error handling and loading states
 
-- [ ] **WebSocket Integration** (`src/lib/websocket/`)
-  - [ ] Real-time price data streaming
-  - [ ] Buy/sell signal notifications
-  - [ ] Connection status management
-  - [ ] Automatic reconnection logic
+- [x] **WebSocket Integration** (`src/lib/websocket/`)
+  - [x] Real-time price data streaming
+  - [x] Buy/sell signal notifications
+  - [x] Connection status management
+  - [x] Automatic reconnection logic
+  - [x] Hybrid approach with polling fallback
+  - [x] Adaptive polling based on WebSocket status
+  - [x] Integration with existing monitoring hook
+  - [x] Bidirectional communication with heartbeat
 
 ### Phase 6: Trading Management (Day 2: 09:00-15:30)
 - [x] **Trading Dashboard** (`src/app/trading/page.tsx`)
@@ -556,11 +565,16 @@ npm run format                   # Format with Prettier
   - [ ] Time-based exit strategy implementation
   - [ ] Force liquidation logic (15:20-15:30)
 
-- [ ] **Monitoring System** (`app/core/monitoring/`)
-  - [ ] Real-time after-hours monitoring (16:00-17:40)
-  - [ ] 30-minute interval checks
-  - [ ] Dynamic threshold adjustment
-  - [ ] WebSocket real-time updates
+- [x] **Monitoring System** (`app/core/monitoring/`)
+  - [x] Session manager implementation (`session_manager.py`)
+  - [x] Threshold adjuster implementation (`threshold_adjuster.py`)
+  - [x] Real-time after-hours monitoring (16:00-17:40)
+  - [x] 30-minute interval checks framework
+  - [x] Dynamic threshold adjustment algorithms
+  - [x] API endpoints for monitoring control
+  - [x] Session lifecycle management
+  - [x] Error handling for "already running" sessions
+  - [x] WebSocket real-time updates (monitoring status, price updates, buy signals)
 
 ### Phase 4: Scheduling & Automation
 - [ ] **Task Scheduler** (`app/services/scheduler.py`)
@@ -569,11 +583,16 @@ npm run format                   # Format with Prettier
   - [ ] Position monitoring during trading hours
   - [ ] Automatic liquidation scheduling
 
-- [ ] **WebSocket Implementation** (`app/api/websocket.py`)
-  - [ ] Real-time price updates
-  - [ ] Buy/sell signal notifications
-  - [ ] Portfolio status updates
-  - [ ] Client connection management
+- [x] **WebSocket Implementation** (`app/api/websocket.py`)
+  - [x] Real-time price updates
+  - [x] Buy/sell signal notifications
+  - [x] Portfolio status updates
+  - [x] Client connection management
+  - [x] Monitoring status broadcasts
+  - [x] Heartbeat mechanism
+  - [x] Connection state management
+  - [x] Auto-generated client IDs
+  - [x] Message type routing and handling
 
 ### Phase 5: Data Management & Analytics
 - [x] **File Storage System** (`data/` directory structure)

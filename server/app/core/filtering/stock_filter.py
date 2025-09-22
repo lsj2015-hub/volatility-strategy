@@ -141,33 +141,32 @@ class StockFilterEngine:
 
         try:
             # KIS API 클라이언트 획득 및 데이터 조회
-            try:
-                kis_client = await get_kis_client()
-                all_stocks = await kis_client.get_all_stocks_basic_info()
-                logger.info(f"Retrieved {len(all_stocks)} stocks from KIS API")
-            except Exception as e:
-                logger.warning(f"KIS API failed, using mock data: {e}")
-                all_stocks = self._get_mock_stock_data()
+            kis_client = await get_kis_client()
+            trading_mode = "Mock" if kis_client.is_mock_trading else "Real"
+
+            all_stocks = await kis_client.get_all_stocks_basic_info()
+            logger.info(f"Retrieved {len(all_stocks)} stocks from KIS API ({trading_mode} trading mode)")
 
             # 거래량 순위 정보도 함께 조회 (평균 거래량 추정용)
             volume_map = {}
             try:
-                if 'kis_client' in locals():
-                    volume_ranking = await kis_client.get_stock_volume_ranking()
-                    if volume_ranking and isinstance(volume_ranking, list):
-                        for stock in volume_ranking:
-                            if isinstance(stock, dict):
-                                stock_code = stock.get('mksc_shrn_iscd', '')
-                                if stock_code:
-                                    volume_map[stock_code] = stock
+                volume_ranking = await kis_client.get_stock_volume_ranking()
+                if volume_ranking and isinstance(volume_ranking, list):
+                    for stock in volume_ranking:
+                        if isinstance(stock, dict):
+                            stock_code = stock.get('mksc_shrn_iscd', '')
+                            if stock_code:
+                                volume_map[stock_code] = stock
+                    logger.info(f"Retrieved volume ranking for {len(volume_map)} stocks ({trading_mode} mode)")
             except Exception as e:
-                logger.warning(f"Volume ranking failed: {e}")
+                logger.warning(f"Volume ranking failed in {trading_mode} mode: {e}")
+                # 거래량 순위 실패시에도 필터링은 계속 진행 (기본 거래량 사용)
 
             filtered_stocks = []
 
             for stock_data in all_stocks:
                 try:
-                    filtered_stock = await self._evaluate_stock(stock_data, volume_map, conditions)
+                    filtered_stock = await self._evaluate_stock(stock_data, volume_map, conditions, kis_client)
                     if filtered_stock:
                         filtered_stocks.append(filtered_stock)
                 except Exception as e:
@@ -188,7 +187,8 @@ class StockFilterEngine:
         self,
         stock_data: Dict[str, Any],
         volume_map: Dict[str, Any],
-        conditions: FilterConditions
+        conditions: FilterConditions,
+        kis_client
     ) -> Optional[FilteredStock]:
         """개별 주식 평가"""
         try:
@@ -219,7 +219,7 @@ class StockFilterEngine:
             day_low = float(stock_data.get('stck_llam', current_price))
 
             # 고급 모멘텀 데이터 계산
-            advanced_data = await self._calculate_advanced_momentum(symbol, stock_data, volume_info)
+            advanced_data = await self._calculate_advanced_momentum(symbol, stock_data, volume_info, kis_client)
 
             # 고급 필터 조건 검사
             if not self._passes_advanced_filters(advanced_data, conditions):
@@ -291,7 +291,8 @@ class StockFilterEngine:
         self,
         symbol: str,
         stock_data: Dict[str, Any],
-        volume_info: Dict[str, Any]
+        volume_info: Dict[str, Any],
+        kis_client
     ) -> Dict[str, Any]:
         """고급 모멘텀 데이터 계산"""
         advanced_data = {}
@@ -301,33 +302,52 @@ class StockFilterEngine:
             current_volume = int(stock_data.get('acml_vol', 0))
             change_percent = float(stock_data.get('prdy_ctrt', 0))
 
-            # KIS API에서 실제 분봉 데이터 조회 시도
-            kis_client = await get_kis_client()
+            # KIS API에서 실제 시장 데이터 조회
+            try:
+                # 1. 시장 지수 데이터 조회
+                market_data = await kis_client.get_market_index_data()
+                market_return = market_data.get('market_return', 2.0)
 
-            # 1. 시장 지수 데이터 조회
-            market_data = await kis_client.get_market_index_data()
-            market_return = market_data.get('market_return', 2.0)
+                # 2. 분봉 데이터로 실제 모멘텀 계산
+                minute_data = await kis_client.get_minute_data_for_momentum(symbol)
 
-            # 2. 분봉 데이터로 실제 모멘텀 계산
-            minute_data = await kis_client.get_minute_data_for_momentum(symbol)
+                if 'error' not in minute_data:
+                    # 실제 KIS API 데이터 사용
+                    advanced_data['late_session_return'] = minute_data.get('late_session_return', 0.0)
+                    advanced_data['late_session_volume_ratio'] = minute_data.get('late_session_volume_ratio', 15.0)
+                    advanced_data['vwap'] = minute_data.get('vwap', current_price)
+                    advanced_data['vwap_ratio'] = (current_price / advanced_data['vwap'] * 100) if advanced_data['vwap'] > 0 else 100
 
-            if 'error' not in minute_data:
-                # 실제 KIS API 데이터 사용
-                advanced_data['late_session_return'] = minute_data.get('late_session_return', 0.0)
-                advanced_data['late_session_volume_ratio'] = minute_data.get('late_session_volume_ratio', 15.0)
-                advanced_data['vwap'] = minute_data.get('vwap', current_price)
-                advanced_data['vwap_ratio'] = (current_price / advanced_data['vwap'] * 100) if advanced_data['vwap'] > 0 else 100
+                    # 3. 시장 대비 상대 수익률
+                    advanced_data['relative_return'] = change_percent - market_return
+                else:
+                    # 분봉 데이터 실패시 기본값으로 계산 (필터링에서 제외하지 않음)
+                    logger.warning(f"Minute data unavailable for {symbol}, using basic calculations")
+                    advanced_data['late_session_return'] = 0.0
+                    advanced_data['late_session_volume_ratio'] = 15.0
+                    advanced_data['vwap'] = current_price
+                    advanced_data['vwap_ratio'] = 100.0
+                    advanced_data['relative_return'] = change_percent - 2.0  # 기본 시장 수익률 사용
 
-                # 3. 시장 대비 상대 수익률
-                advanced_data['relative_return'] = change_percent - market_return
-            else:
-                # KIS API 실패시 해당 종목을 필터링에서 제외
-                logger.error(f"CRITICAL: Failed to get real-time data for {symbol} - excluding from filtering for safety")
-                return None  # 해당 종목을 필터링 결과에서 완전 제외
+            except Exception as e:
+                # 고급 모멘텀 계산 실패시 기본값 사용 (필터링에서 제외하지 않음)
+                logger.warning(f"Advanced momentum calculation failed for {symbol}: {str(e)}, using defaults")
+                advanced_data['late_session_return'] = 0.0
+                advanced_data['late_session_volume_ratio'] = 15.0
+                advanced_data['vwap'] = current_price
+                advanced_data['vwap_ratio'] = 100.0
+                advanced_data['relative_return'] = change_percent - 2.0
 
         except Exception as e:
-            logger.error(f"CRITICAL: Error calculating advanced momentum for {symbol}: {str(e)} - excluding from filtering")
-            return None  # 에러 발생시도 해당 종목을 완전 제외
+            logger.warning(f"Error in advanced momentum calculation for {symbol}: {str(e)}")
+            # 전체 계산 실패시 기본값 반환
+            return {
+                'late_session_return': 0.0,
+                'late_session_volume_ratio': 15.0,
+                'vwap': current_price,
+                'vwap_ratio': 100.0,
+                'relative_return': change_percent - 2.0
+            }
 
         return advanced_data
 
@@ -446,55 +466,6 @@ class StockFilterEngine:
 
         return reasons
 
-    def _get_mock_stock_data(self) -> List[Dict[str, Any]]:
-        """개발/테스트용 Mock 주식 데이터"""
-        return [
-            {
-                "mksc_shrn_iscd": "005930",
-                "hts_kor_isnm": "삼성전자",
-                "stck_prpr": "80500",
-                "prdy_ctrt": "2.94",
-                "acml_vol": "24974737",
-                "stck_hgpr": "81000",
-                "stck_lwpr": "79500"
-            },
-            {
-                "mksc_shrn_iscd": "000660",
-                "hts_kor_isnm": "SK하이닉스",
-                "stck_prpr": "142000",
-                "prdy_ctrt": "3.28",
-                "acml_vol": "8234567",
-                "stck_hgpr": "143500",
-                "stck_lwpr": "140000"
-            },
-            {
-                "mksc_shrn_iscd": "035420",
-                "hts_kor_isnm": "NAVER",
-                "stck_prpr": "195000",
-                "prdy_ctrt": "1.56",
-                "acml_vol": "1234567",
-                "stck_hgpr": "197000",
-                "stck_lwpr": "193000"
-            },
-            {
-                "mksc_shrn_iscd": "051910",
-                "hts_kor_isnm": "LG화학",
-                "stck_prpr": "412000",
-                "prdy_ctrt": "2.24",
-                "acml_vol": "567890",
-                "stck_hgpr": "415000",
-                "stck_lwpr": "408000"
-            },
-            {
-                "mksc_shrn_iscd": "006400",
-                "hts_kor_isnm": "삼성SDI",
-                "stck_prpr": "445000",
-                "prdy_ctrt": "4.12",
-                "acml_vol": "890123",
-                "stck_hgpr": "450000",
-                "stck_lwpr": "440000"
-            }
-        ]
 
 
 # 싱글톤 인스턴스

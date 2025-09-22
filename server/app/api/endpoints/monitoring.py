@@ -76,6 +76,14 @@ async def start_monitoring_session(request: StartMonitoringRequest):
                 if field not in target:
                     raise HTTPException(status_code=400, detail=f"Missing required field: {field}")
 
+        # 세션이 이미 실행 중인지 확인
+        if session_manager.is_running:
+            return {
+                "success": True,
+                "message": "Monitoring session is already running",
+                "targets_count": len(session_manager.monitoring_targets)
+            }
+
         # 세션 시작
         success = await session_manager.start_session(request.targets)
 

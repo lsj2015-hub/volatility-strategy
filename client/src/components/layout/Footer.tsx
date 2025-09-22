@@ -5,7 +5,6 @@
 'use client';
 
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 
 export function Footer() {
   return (
@@ -14,8 +13,6 @@ export function Footer() {
         {/* 좌측 정보 */}
         <div className="flex items-center space-x-4 text-sm text-muted-foreground">
           <span>© 2024 Volatility Trading Strategy</span>
-          <Separator orientation="vertical" className="h-4" />
-          <span>KIS Open API</span>
         </div>
 
         {/* 우측 상태 정보 */}

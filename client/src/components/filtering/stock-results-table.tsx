@@ -233,7 +233,6 @@ export function StockResultsTable({
                     {getSortIcon('strength')}
                   </Button>
                 </TableHead>
-                <TableHead>Sector</TableHead>
                 <TableHead>Reasons</TableHead>
               </TableRow>
             </TableHeader>
@@ -283,9 +282,6 @@ export function StockResultsTable({
                     <div className={`font-medium ${getScoreColor(stock.strength)}`}>
                       {stock.strength.toFixed(1)}
                     </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{stock.sector}</Badge>
                   </TableCell>
                   <TableCell>
                     <div className="space-y-1">

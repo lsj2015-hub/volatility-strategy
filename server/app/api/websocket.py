@@ -239,6 +239,15 @@ async def send_session_status(day: str, phase: str, status: str, next_action: st
     }
     await manager.broadcast(message)
 
+async def send_monitoring_status_update(status_data: dict):
+    """Send monitoring session status update to all connected clients"""
+    message = {
+        "type": "monitoring_status_update",
+        "timestamp": datetime.now().isoformat(),
+        "data": status_data
+    }
+    await manager.broadcast(message)
+
 async def send_portfolio_update(total_value: float, unrealized_pnl: float, unrealized_pnl_percent: float,
                                position_count: int, changes: list):
     """Send portfolio update to all connected clients"""

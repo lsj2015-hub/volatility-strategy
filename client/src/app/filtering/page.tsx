@@ -9,86 +9,15 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ConditionBuilder } from '@/components/filtering/condition-builder';
 import { StockResultsTable } from '@/components/filtering/stock-results-table';
-import { StockScoring } from '@/components/filtering/stock-scoring';
 import { FilterSummary } from '@/components/filtering/filter-summary';
 import { FilterConditions, FilteredStock } from '@/types/trading';
 import { useRouter } from 'next/navigation';
 import { useHydratedSettingsStore } from '@/hooks/useHydratedStore';
-import { Settings, RefreshCw } from 'lucide-react';
+import { useTradingModeStore } from '@/stores/trading-mode';
+import { usePortfolioStore } from '@/stores/portfolio';
+import { StocksService } from '@/lib/api';
+import { Settings, RefreshCw, AlertCircle } from 'lucide-react';
 
-// Mock data for demonstration
-const mockFilteredStocks: FilteredStock[] = [
-  {
-    symbol: 'KOSPI200',
-    name: 'KOSPI 200 Index ETF',
-    score: 87.5,
-    price: 45000,
-    volume: 1200, // 1200억원 (12조)
-    momentum: 78.2,
-    strength: 120,
-    marketCap: 50000, // 5조원
-    dailyReturn: 2.1,
-    volumeRatio: 2.5,
-    sector: 'ETF',
-    reasons: ['High volume', 'Strong momentum', 'Technical breakout']
-  },
-  {
-    symbol: 'SAMSUNG',
-    name: 'Samsung Electronics',
-    score: 85.3,
-    price: 68000,
-    volume: 2500, // 2500억원 (25조)
-    momentum: 72.8,
-    strength: 115,
-    marketCap: 400000, // 40조원
-    dailyReturn: 1.8,
-    volumeRatio: 2.2,
-    sector: 'Technology',
-    reasons: ['Market leader', 'Volume spike', 'Earnings growth']
-  },
-  {
-    symbol: 'HYNIX',
-    name: 'SK Hynix',
-    score: 76.8,
-    price: 125000,
-    volume: 800, // 800억원 (8조)
-    momentum: 81.5,
-    strength: 125,
-    marketCap: 90000, // 9조원
-    dailyReturn: 3.2,
-    volumeRatio: 3.1,
-    sector: 'Semiconductor',
-    reasons: ['Sector rotation', 'Technical strength']
-  },
-  {
-    symbol: 'NAVER',
-    name: 'NAVER Corporation',
-    score: 73.2,
-    price: 198000,
-    volume: 450, // 450억원 (4.5조)
-    momentum: 68.9,
-    strength: 110,
-    marketCap: 33000, // 3.3조원
-    dailyReturn: 1.2,
-    volumeRatio: 1.8,
-    sector: 'Internet',
-    reasons: ['Platform growth', 'AI innovation']
-  },
-  {
-    symbol: 'POSCO',
-    name: 'POSCO Holdings',
-    score: 69.1,
-    price: 385000,
-    volume: 320, // 320억원 (3.2조)
-    momentum: 65.7,
-    strength: 105,
-    marketCap: 20000, // 2조원
-    dailyReturn: 0.8,
-    volumeRatio: 1.5,
-    sector: 'Steel',
-    reasons: ['Infrastructure demand', 'Green steel']
-  }
-];
 
 export default function FilteringPage() {
   const router = useRouter();
@@ -99,11 +28,17 @@ export default function FilteringPage() {
     loadPreset
   } = useHydratedSettingsStore();
 
+  const { tradingMode } = useTradingModeStore();
+  const { setSelectedStocks: setPortfolioStocks } = usePortfolioStore();
+
   const [filteredStocks, setFilteredStocks] = useState<FilteredStock[]>([]);
-  const [selectedStocks, setSelectedStocks] = useState<string[]>([]);
+  const [selectedStocks, setLocalSelectedStocks] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [currentConditions, setCurrentConditions] = useState<FilterConditions>(defaultConditions);
+  const [error, setError] = useState<string | null>(null);
+  const [totalStocks, setTotalStocks] = useState<number>(0);
+  const [filteringTime, setFilteringTime] = useState<number>(0);
 
   // Load default settings on component mount
   useEffect(() => {
@@ -154,36 +89,48 @@ export default function FilteringPage() {
   const handleFilterRun = async (conditions: FilterConditions) => {
     setIsLoading(true);
     setShowResults(false);
+    setError(null);
+
+    const startTime = Date.now();
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      console.log(`Starting stock filtering with ${tradingMode?.is_mock ? 'mock' : 'real'} trading data`);
 
-      // For demo purposes, use mock data with some filtering logic
-      // 거래량은 이미 억원 단위로 저장되어 있음
-      const results = mockFilteredStocks.filter(stock => {
-        return stock.price >= conditions.minPrice &&
-               stock.price <= conditions.maxPrice &&
-               stock.volume >= conditions.minVolume && // 억원 단위 비교
-               stock.volume <= conditions.maxVolume &&
-               stock.momentum >= conditions.minMomentum &&
-               stock.momentum <= conditions.maxMomentum &&
-               stock.strength >= conditions.minStrength &&
-               stock.strength <= conditions.maxStrength;
-      });
+      // 전체 주식 수 조회와 필터링을 병렬로 실행
+      const [allStocksData, filteredStocksData] = await Promise.all([
+        StocksService.getAllStocks({ limit: 1000 }),  // 전체 주식 수 조회용 (최대 1000개)
+        StocksService.filterStocks(conditions)     // 필터링 실행
+      ]);
 
-      setFilteredStocks(results);
-      setSelectedStocks([]);
+      const endTime = Date.now();
+      const elapsedTime = Math.round((endTime - startTime) / 1000);
+
+      setFilteredStocks(filteredStocksData);
+      setLocalSelectedStocks([]);
+      setFilteringTime(elapsedTime);
+
+      // 전체 주식 수 설정 (실제 데이터 또는 추정값)
+      if (allStocksData && allStocksData.length > 0) {
+        setTotalStocks(allStocksData.length);
+      } else {
+        // API 실패시 일반적인 한국 주식 수로 추정
+        setTotalStocks(2800);
+      }
+
       setShowResults(true);
+      console.log(`Filter completed: ${filteredStocksData.length} stocks found using ${tradingMode?.is_mock ? 'mock' : 'real'} data`);
     } catch (error) {
       console.error('Filtering failed:', error);
+      setError(error instanceof Error ? error.message : 'Unknown error occurred');
+      setFilteredStocks([]);
+      setShowResults(false);
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleStockSelection = (symbol: string, selected: boolean) => {
-    setSelectedStocks(prev =>
+    setLocalSelectedStocks(prev =>
       selected
         ? [...prev, symbol]
         : prev.filter(s => s !== symbol)
@@ -191,15 +138,22 @@ export default function FilteringPage() {
   };
 
   const handleSelectAll = (selected: boolean) => {
-    setSelectedStocks(selected ? filteredStocks.map(stock => stock.symbol) : []);
+    setLocalSelectedStocks(selected ? filteredStocks.map(stock => stock.symbol) : []);
   };
 
   const handleProceedToPortfolio = () => {
-    // Navigate to portfolio page with selected stocks
-    const queryParams = new URLSearchParams({
-      selected: selectedStocks.join(',')
-    });
-    router.push(`/portfolio?${queryParams.toString()}`);
+    // Get full stock data for selected symbols
+    const selectedStockData = filteredStocks.filter(stock =>
+      selectedStocks.includes(stock.symbol)
+    );
+
+    // Store selected stocks in portfolio store
+    setPortfolioStocks(selectedStockData);
+
+    console.log('Filtering: Selected stocks saved to portfolio store:', selectedStockData.length);
+
+    // Navigate to portfolio page
+    router.push('/portfolio');
   };
 
   return (
@@ -209,7 +163,7 @@ export default function FilteringPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Stock Filtering</h1>
           <p className="text-muted-foreground">
-            Real-time filtering with settings from your default preset
+            Real-time filtering using {tradingMode?.is_mock ? 'mock trading' : 'real trading'} data
           </p>
           {activePreset && (
             <div className="flex items-center space-x-2 mt-2">
@@ -241,6 +195,25 @@ export default function FilteringPage() {
         </div>
       </div>
 
+      {/* 에러 표시 */}
+      {error && (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+          <div className="flex items-center space-x-2">
+            <AlertCircle className="h-4 w-4 text-red-600" />
+            <h3 className="text-sm font-medium text-red-800">Filtering Error</h3>
+          </div>
+          <p className="mt-2 text-sm text-red-700">{error}</p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setError(null)}
+            className="mt-3"
+          >
+            Dismiss
+          </Button>
+        </div>
+      )}
+
       {/* 필터링 조건 설정 */}
       <ConditionBuilder
         onFilterRun={handleFilterRun}
@@ -252,10 +225,10 @@ export default function FilteringPage() {
       {/* 필터링 결과 요약 */}
       {showResults && (
         <FilterSummary
-          totalStocks={5000} // Mock total
+          totalStocks={totalStocks}
           filteredStocks={filteredStocks}
           selectedStocks={selectedStocks}
-          filteringTime={1200}
+          filteringTime={filteringTime}
           onProceedToPortfolio={selectedStocks.length > 0 ? handleProceedToPortfolio : undefined}
         />
       )}
@@ -271,10 +244,6 @@ export default function FilteringPage() {
         />
       )}
 
-      {/* 스코어링 시각화 */}
-      {showResults && filteredStocks.length > 0 && (
-        <StockScoring stocks={filteredStocks} />
-      )}
     </div>
   );
 }

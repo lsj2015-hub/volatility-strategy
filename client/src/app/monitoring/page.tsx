@@ -21,7 +21,19 @@ export default function MonitoringPage() {
   // Additional state for UI components
   const [isConnected, setIsConnected] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const [currentTime, setCurrentTime] = useState('16:25:45');
+  const [currentTime, setCurrentTime] = useState('');
+
+  // Real-time clock
+  useEffect(() => {
+    const updateTime = () => {
+      setCurrentTime(new Date().toLocaleTimeString('ko-KR'));
+    };
+
+    updateTime(); // Initial update
+    const interval = setInterval(updateTime, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   const {
     status,
@@ -45,34 +57,109 @@ export default function MonitoringPage() {
     }
   });
 
-  // Mock data for components that need immediate data
-  const mockTimeSlots = [
-    { time: '16:00', label: '1차 모니터링', status: status?.current_phase === 'phase_1' ? 'active' as const :
-             (status?.current_phase && ['phase_2', 'phase_3', 'phase_4', 'completed'].includes(status.current_phase)) ? 'completed' as const : 'pending' as const },
-    { time: '16:30', label: '2차 모니터링', status: status?.current_phase === 'phase_2' ? 'active' as const :
-             (status?.current_phase && ['phase_3', 'phase_4', 'completed'].includes(status.current_phase)) ? 'completed' as const : 'pending' as const },
-    { time: '17:00', label: '3차 모니터링', status: status?.current_phase === 'phase_3' ? 'active' as const :
-             (status?.current_phase && ['phase_4', 'completed'].includes(status.current_phase)) ? 'completed' as const : 'pending' as const },
-    { time: '17:30', label: '최종 모니터링', status: status?.current_phase === 'phase_4' ? 'active' as const :
-             status?.current_phase === 'completed' ? 'completed' as const : 'pending' as const }
-  ];
+  // Generate real time slots based on current session
+  const generateTimeSlots = () => {
+    const phaseMapping = {
+      'waiting': 0,
+      'phase_1': 1,
+      'phase_2': 2,
+      'phase_3': 3,
+      'phase_4': 4,
+      'completed': 5
+    };
+
+    const currentPhaseIndex = phaseMapping[status?.current_phase as keyof typeof phaseMapping] || 0;
+
+    return [
+      {
+        time: '16:00',
+        label: '1차 모니터링',
+        status: currentPhaseIndex === 1 ? 'active' as const :
+                currentPhaseIndex > 1 ? 'completed' as const : 'pending' as const,
+        threshold: 2.0
+      },
+      {
+        time: '16:30',
+        label: '2차 모니터링',
+        status: currentPhaseIndex === 2 ? 'active' as const :
+                currentPhaseIndex > 2 ? 'completed' as const : 'pending' as const,
+        threshold: 2.0
+      },
+      {
+        time: '17:00',
+        label: '3차 모니터링',
+        status: currentPhaseIndex === 3 ? 'active' as const :
+                currentPhaseIndex > 3 ? 'completed' as const : 'pending' as const,
+        threshold: 2.0
+      },
+      {
+        time: '17:30',
+        label: '최종 모니터링',
+        status: currentPhaseIndex === 4 ? 'active' as const :
+                currentPhaseIndex > 4 ? 'completed' as const : 'pending' as const,
+        threshold: 2.0
+      }
+    ];
+  };
+
+  const timeSlots = generateTimeSlots();
 
   // Find triggered targets for buy signal alerts
   const triggeredTargets = status?.monitoring_targets.filter(target => target.is_triggered && !target.trigger_time) || [];
 
+  // Get portfolio data for investment amounts
+  const getPortfolioAllocation = (symbol: string) => {
+    try {
+      const portfolioData = localStorage.getItem('confirmed-portfolio');
+      if (portfolioData) {
+        const portfolio = JSON.parse(portfolioData);
+        const allocation = portfolio.allocations?.[symbol];
+        return allocation?.amount || 1000000; // Fallback to 1M KRW
+      }
+    } catch (error) {
+      console.warn('Failed to get portfolio allocation:', error);
+    }
+    return 1000000; // Default fallback
+  };
+
+  // Calculate dynamic time remaining based on actual trigger time
+  const calculateTimeRemaining = (triggerTime?: string) => {
+    if (!triggerTime) return 30; // Default 30 seconds for new signals
+
+    try {
+      const trigger = new Date(triggerTime);
+      const now = new Date();
+      const elapsedSeconds = Math.floor((now.getTime() - trigger.getTime()) / 1000);
+      const remainingSeconds = Math.max(0, 30 - elapsedSeconds);
+      return remainingSeconds;
+    } catch {
+      return 30; // Fallback on error
+    }
+  };
+
   // Convert triggered targets to buy signals format
-  const buySignals = triggeredTargets.map(target => ({
-    id: `signal-${target.symbol}`,
-    stockCode: target.symbol,
-    stockName: target.stock_name,
-    triggerPrice: target.entry_price,
-    currentPrice: target.current_price,
-    changePercent: target.change_percent,
-    triggerTime: new Date().toLocaleTimeString('ko-KR'),
-    amount: Math.floor(1000000 / target.current_price) * target.current_price, // Mock amount based on 1M KRW
-    status: 'pending' as const,
-    timeRemaining: 30
-  }));
+  const buySignals = triggeredTargets.map(target => {
+    const allocationAmount = getPortfolioAllocation(target.symbol);
+    const shares = Math.floor(allocationAmount / target.current_price);
+    const actualAmount = shares * target.current_price;
+    const timeRemaining = calculateTimeRemaining(target.trigger_time);
+
+    return {
+      id: `signal-${target.symbol}`,
+      stockCode: target.symbol,
+      stockName: target.stock_name,
+      triggerPrice: target.entry_price,
+      currentPrice: target.current_price,
+      changePercent: target.change_percent,
+      triggerTime: target.trigger_time
+        ? new Date(target.trigger_time).toLocaleTimeString('ko-KR')
+        : new Date().toLocaleTimeString('ko-KR'),
+      amount: actualAmount,
+      shares: shares,
+      status: 'pending' as const,
+      timeRemaining: timeRemaining
+    };
+  });
 
   const handleStartSession = async (targets: any[]) => {
     const success = await startSession(targets);
@@ -208,10 +295,7 @@ export default function MonitoringPage() {
           />
 
           {/* Progress Timeline */}
-          <ProgressTimeline timeSlots={mockTimeSlots.map(slot => ({
-            ...slot,
-            threshold: 2.0 // Add required threshold property
-          }))} />
+          <ProgressTimeline timeSlots={timeSlots} />
         </div>
 
         {/* Right Column - Controls and Alerts */}

@@ -5,6 +5,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { monitoringAPI } from '@/lib/api';
+import { getWebSocketClient } from '@/lib/websocket/client';
 import type {
   MonitoringSessionStatus,
   StartMonitoringRequest,
@@ -30,11 +31,13 @@ export function useMonitoringSession(options: UseMonitoringSessionOptions = {}):
   const [status, setStatus] = useState<MonitoringSessionStatus | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isWebSocketConnected, setIsWebSocketConnected] = useState(false);
 
   // Refs for callbacks and intervals
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const previousPhaseRef = useRef<SessionPhase | null>(null);
   const previousTriggeredCountRef = useRef<number>(0);
+  const wsClientRef = useRef(getWebSocketClient());
 
   // Clear error when status changes
   useEffect(() => {
@@ -79,6 +82,126 @@ export function useMonitoringSession(options: UseMonitoringSessionOptions = {}):
       });
     }
   }, [status?.current_phase, status?.is_running, onSessionComplete]);
+
+  // WebSocket setup and handlers
+  useEffect(() => {
+    const wsClient = wsClientRef.current;
+
+    // WebSocket 연결 상태 핸들러
+    const unsubscribeStatus = wsClient.onStatusChange((wsStatus) => {
+      setIsWebSocketConnected(wsStatus.connected);
+
+      if (wsStatus.connected) {
+        console.log('✅ WebSocket connected - Real-time updates enabled');
+      } else {
+        console.log('📡 WebSocket disconnected - Using polling fallback');
+      }
+    });
+
+    // 모니터링 상태 업데이트 핸들러 (타입 문제로 일단 any 사용)
+    const unsubscribeMonitoringStatus = (wsClient as any).on('monitoring_status_update', (message: any) => {
+      try {
+        console.log('📊 Real-time monitoring update received:', message.data);
+        setStatus(message.data);
+        setError(null); // Clear errors when receiving real-time data
+      } catch (error) {
+        console.warn('Failed to process monitoring status update:', error);
+      }
+    });
+
+    // 가격 업데이트 핸들러
+    const unsubscribePriceUpdate = wsClient.on('price_update', (message) => {
+      try {
+        console.log('💰 Real-time price update:', message.data);
+
+        // 현재 상태가 있는 경우 해당 종목의 가격 정보만 업데이트
+        setStatus(prevStatus => {
+          if (!prevStatus || !prevStatus.monitoring_targets) return prevStatus;
+
+          const updatedTargets = prevStatus.monitoring_targets.map(target => {
+            if (target.symbol === message.data.symbol) {
+              return {
+                ...target,
+                current_price: message.data.price,
+                change_percent: message.data.changePercent,
+                volume: message.data.volume
+              };
+            }
+            return target;
+          });
+
+          return {
+            ...prevStatus,
+            monitoring_targets: updatedTargets
+          };
+        });
+      } catch (error) {
+        console.warn('Failed to process price update:', error);
+      }
+    });
+
+    // 매수 신호 핸들러
+    const unsubscribeBuySignal = wsClient.on('buy_signal', (message) => {
+      try {
+        console.log('🚀 Buy signal received:', message.data);
+
+        // 해당 종목을 triggered로 업데이트
+        setStatus(prevStatus => {
+          if (!prevStatus || !prevStatus.monitoring_targets) return prevStatus;
+
+          const updatedTargets = prevStatus.monitoring_targets.map(target => {
+            if (target.symbol === message.data.symbol) {
+              return {
+                ...target,
+                is_triggered: true,
+                trigger_time: message.timestamp
+              };
+            }
+            return target;
+          });
+
+          const newTriggeredCount = updatedTargets.filter(t => t.is_triggered).length;
+
+          return {
+            ...prevStatus,
+            monitoring_targets: updatedTargets,
+            triggered_count: newTriggeredCount
+          };
+        });
+
+        // 콜백 실행
+        const targetData = {
+          symbol: message.data.symbol,
+          price: message.data.price,
+          reason: message.data.reason,
+          timestamp: message.timestamp
+        };
+        onTargetTriggered?.(targetData as any);
+      } catch (error) {
+        console.warn('Failed to process buy signal:', error);
+      }
+    });
+
+    // WebSocket 연결 시도 (실패해도 폴링으로 fallback)
+    const connectWebSocket = async () => {
+      try {
+        await wsClient.connect();
+      } catch (error) {
+        console.log('WebSocket connection failed, using polling fallback:', error);
+        // 에러를 던지지 않음 - 폴링이 여전히 작동
+      }
+    };
+
+    connectWebSocket();
+
+    // Cleanup
+    return () => {
+      unsubscribeStatus();
+      unsubscribeMonitoringStatus();
+      unsubscribePriceUpdate();
+      unsubscribeBuySignal();
+    };
+  }, [onTargetTriggered]);
 
   // Fetch session status
   const fetchStatus = useCallback(async () => {
@@ -131,14 +254,28 @@ export function useMonitoringSession(options: UseMonitoringSessionOptions = {}):
     }
   }, [fetchStatus]);
 
-  // Auto-refresh setup
+  // Auto-refresh setup (adaptive based on WebSocket connection)
   useEffect(() => {
     if (autoRefresh) {
       // Initial fetch
       refresh();
 
+      // Adaptive polling interval based on WebSocket connection
+      const pollingInterval = isWebSocketConnected
+        ? refreshInterval * 3  // Slower polling when WebSocket is connected (90 seconds)
+        : refreshInterval;     // Normal polling when WebSocket is disconnected (30 seconds)
+
       // Set up interval
-      refreshIntervalRef.current = setInterval(fetchStatus, refreshInterval);
+      refreshIntervalRef.current = setInterval(() => {
+        // Only fetch via polling if WebSocket is not connected or as backup
+        if (!isWebSocketConnected) {
+          fetchStatus();
+        } else {
+          // Periodic backup fetch even when WebSocket is connected (less frequent)
+          console.log('🔄 Backup polling fetch (WebSocket connected)');
+          fetchStatus();
+        }
+      }, pollingInterval);
 
       return () => {
         if (refreshIntervalRef.current) {
@@ -146,7 +283,7 @@ export function useMonitoringSession(options: UseMonitoringSessionOptions = {}):
         }
       };
     }
-  }, [autoRefresh, refreshInterval, fetchStatus, refresh]);
+  }, [autoRefresh, refreshInterval, fetchStatus, refresh, isWebSocketConnected]);
 
   // Session control functions
   const startSession = useCallback(async (targets: StartMonitoringRequest['targets']): Promise<boolean> => {
@@ -289,6 +426,7 @@ export function useMonitoringSession(options: UseMonitoringSessionOptions = {}):
     status,
     isLoading,
     error,
+    isWebSocketConnected,
 
     // Session Control
     startSession,

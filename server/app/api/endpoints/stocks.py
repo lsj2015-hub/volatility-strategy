@@ -274,78 +274,10 @@ async def get_volume_ranking(
 
     except Exception as e:
         logger.error(f"Volume ranking API failed: {str(e)}")
-        # Fallback: 거래량 기반 mock 데이터 제공
-        logger.info("Providing emergency fallback volume ranking data")
-        fallback_data = [
-            {
-                "mksc_shrn_iscd": "005930",
-                "hts_kor_isnm": "삼성전자",
-                "stck_prpr": "79700",
-                "acml_vol": "20898386",
-                "prdy_ctrt": "-0.99",
-                "volume": 20898386,
-                "name": "삼성전자",
-                "symbol": "005930",
-                "price": 79700.0,
-                "change_percent": -0.99
-            },
-            {
-                "mksc_shrn_iscd": "000660",
-                "hts_kor_isnm": "SK하이닉스",
-                "stck_prpr": "353000",
-                "acml_vol": "4385543",
-                "prdy_ctrt": "0.00",
-                "volume": 4385543,
-                "name": "SK하이닉스",
-                "symbol": "000660",
-                "price": 353000.0,
-                "change_percent": 0.0
-            },
-            {
-                "mksc_shrn_iscd": "035720",
-                "hts_kor_isnm": "카카오",
-                "stck_prpr": "67000",
-                "acml_vol": "5009911",
-                "prdy_ctrt": "3.55",
-                "volume": 5009911,
-                "name": "카카오",
-                "symbol": "035720",
-                "price": 67000.0,
-                "change_percent": 3.55
-            },
-            {
-                "mksc_shrn_iscd": "035420",
-                "hts_kor_isnm": "NAVER",
-                "stck_prpr": "234000",
-                "acml_vol": "1585243",
-                "prdy_ctrt": "-1.89",
-                "volume": 1585243,
-                "name": "NAVER",
-                "symbol": "035420",
-                "price": 234000.0,
-                "change_percent": -1.89
-            },
-            {
-                "mksc_shrn_iscd": "068270",
-                "hts_kor_isnm": "셀트리온",
-                "stck_prpr": "125000",
-                "acml_vol": "1299876",
-                "prdy_ctrt": "1.42",
-                "volume": 1299876,
-                "name": "셀트리온",
-                "symbol": "068270",
-                "price": 125000.0,
-                "change_percent": 1.42
-            }
-        ]
-
-        # 결과 제한
-        limited_fallback = fallback_data[:limit]
-
-        return ApiResponse(
-            success=True,
-            data=limited_fallback,
-            message=f"Retrieved top {len(limited_fallback)} stocks by volume (emergency fallback data)"
+        # KIS API 실패 시 실제 에러 반환 (mock 데이터 제거)
+        raise HTTPException(
+            status_code=503,
+            detail=f"KIS API service unavailable for volume ranking: {str(e)}"
         )
 
 

@@ -6,6 +6,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -18,84 +19,16 @@ import {
   TrendingUp,
   AlertTriangle,
   ArrowRight,
-  DollarSign
+  DollarSign,
+  AlertCircle,
+  Loader2
 } from 'lucide-react';
 import { FilteredStock } from '@/types/trading';
 import { useSettingsStore } from '@/stores/settings';
+import { useTradingModeStore } from '@/stores/trading-mode';
+import { usePortfolioStore } from '@/stores/portfolio';
+import { StocksService } from '@/lib/api';
 
-// Mock data for selected stocks (same as filtering page)
-const mockFilteredStocks: FilteredStock[] = [
-  {
-    symbol: 'KOSPI200',
-    name: 'KOSPI 200 Index ETF',
-    score: 87.5,
-    price: 45000,
-    volume: 1200,
-    momentum: 78.2,
-    strength: 120,
-    marketCap: 50000,
-    dailyReturn: 2.1,
-    volumeRatio: 2.5,
-    sector: 'ETF',
-    reasons: ['High volume', 'Strong momentum', 'Technical breakout']
-  },
-  {
-    symbol: 'SAMSUNG',
-    name: 'Samsung Electronics',
-    score: 85.3,
-    price: 68000,
-    volume: 2500,
-    momentum: 72.8,
-    strength: 115,
-    marketCap: 400000,
-    dailyReturn: 1.8,
-    volumeRatio: 2.2,
-    sector: 'Technology',
-    reasons: ['Market leader', 'Volume spike', 'Earnings growth']
-  },
-  {
-    symbol: 'HYNIX',
-    name: 'SK Hynix',
-    score: 76.8,
-    price: 125000,
-    volume: 800,
-    momentum: 81.5,
-    strength: 125,
-    marketCap: 90000,
-    dailyReturn: 3.2,
-    volumeRatio: 3.1,
-    sector: 'Semiconductor',
-    reasons: ['Sector rotation', 'Technical strength']
-  },
-  {
-    symbol: 'NAVER',
-    name: 'NAVER Corporation',
-    score: 73.2,
-    price: 198000,
-    volume: 450,
-    momentum: 68.9,
-    strength: 110,
-    marketCap: 33000,
-    dailyReturn: 1.2,
-    volumeRatio: 1.8,
-    sector: 'Internet',
-    reasons: ['Platform growth', 'AI innovation']
-  },
-  {
-    symbol: 'POSCO',
-    name: 'POSCO Holdings',
-    score: 69.1,
-    price: 385000,
-    volume: 320,
-    momentum: 65.7,
-    strength: 105,
-    marketCap: 20000,
-    dailyReturn: 0.8,
-    volumeRatio: 1.5,
-    sector: 'Steel',
-    reasons: ['Infrastructure demand', 'Green steel']
-  }
-];
 
 type AllocationMethod = 'equal' | 'risk-weighted' | 'custom';
 
@@ -111,39 +44,151 @@ export default function PortfolioPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { riskManagement } = useSettingsStore();
+  const { data: tradingMode } = useTradingModeStore();
+  const { selectedStocks: portfolioStocks } = usePortfolioStore();
+  const [isClient, setIsClient] = useState(false);
 
-  // URL에서 선택된 종목들 가져오기
+  // URL 파라미터는 백업용으로 유지 (이전 버전과의 호환성)
   const selectedSymbols = searchParams?.get('selected')?.split(',') || [];
 
   // 상태 관리
   const [totalInvestment, setTotalInvestment] = useState(10000000); // 1천만원
   const [allocationMethod, setAllocationMethod] = useState<AllocationMethod>('equal');
   const [allocations, setAllocations] = useState<Record<string, StockAllocation>>({});
+  const [selectedStocks, setSelectedStocks] = useState<FilteredStock[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // 선택된 종목 필터링
-  const selectedStocks = useMemo(() => {
-    return mockFilteredStocks.filter(stock => selectedSymbols.includes(stock.symbol));
-  }, [selectedSymbols]);
+  // 클라이언트 사이드 마운트 감지
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  // 선택된 종목 데이터 가져오기 - 포트폴리오 스토어 우선 사용
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadStocks = async () => {
+      // 포트폴리오 스토어에 데이터가 있는 경우 우선 사용
+      if (portfolioStocks.length > 0) {
+        console.log('Portfolio: Using data from portfolio store:', portfolioStocks.length);
+        if (isMounted) {
+          setSelectedStocks(portfolioStocks);
+          setIsLoading(false);
+        }
+        return;
+      }
+
+      // 포트폴리오 스토어에 데이터가 없고 URL 파라미터도 없는 경우
+      if (selectedSymbols.length === 0) {
+        if (isMounted) {
+          setSelectedStocks([]);
+          setIsLoading(false);
+        }
+        return;
+      }
+
+      // URL 파라미터가 있는 경우 API에서 데이터 가져오기 (백업 방식)
+      if (isMounted) {
+        setIsLoading(true);
+        setError(null);
+      }
+
+      try {
+        console.log(`Portfolio: Fetching ${selectedSymbols.length} selected stocks from API using ${tradingMode?.is_mock ? 'mock' : 'real'} trading data`);
+
+        // 각 종목의 상세 정보를 개별적으로 가져오기
+        const stockPromises = selectedSymbols.map(symbol =>
+          StocksService.getStockDetail(symbol).catch((error: any) => {
+            console.warn(`Failed to fetch ${symbol}:`, error);
+            return null;
+          })
+        );
+
+        const stockResponses = await Promise.all(stockPromises);
+
+        const stocks: FilteredStock[] = [];
+        stockResponses.forEach((response: any, index: number) => {
+          if (response?.success && response.data) {
+            // API 응답을 FilteredStock 형태로 변환
+            const stockData = response.data;
+            const filteredStock: FilteredStock = {
+              symbol: stockData.symbol,
+              name: stockData.name,
+              price: stockData.current_price,
+              volume: stockData.volume,
+              momentum: stockData.change_percent,
+              strength: 50, // 기본값
+              score: 70, // 기본값
+              sector: stockData.sector || 'Unknown',
+              reasons: [`Selected from filtering`],
+              dailyReturn: stockData.change_percent,
+              volumeRatio: 1.5, // 기본값
+              // 고급 데이터는 기본값으로 설정
+              lateSessionReturn: 0,
+              lateSessionVolumeRatio: 15,
+              relativeReturn: stockData.change_percent - 2.0,
+              vwapRatio: 100,
+              vwap: stockData.current_price
+            };
+            stocks.push(filteredStock);
+          } else {
+            console.warn(`Failed to fetch data for ${selectedSymbols[index]}`);
+          }
+        });
+
+        if (isMounted) {
+          setSelectedStocks(stocks);
+          console.log(`Portfolio: Successfully loaded ${stocks.length} stocks out of ${selectedSymbols.length} requested`);
+        }
+      } catch (error) {
+        console.error('Portfolio: Failed to fetch selected stocks:', error);
+        if (isMounted) {
+          setError(error instanceof Error ? error.message : 'Failed to load stock data');
+          setSelectedStocks([]);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadStocks();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [portfolioStocks.length, selectedSymbols.join(','), tradingMode?.is_mock]);
 
   // 초기 배분 설정
   useEffect(() => {
-    if (selectedStocks.length > 0 && Object.keys(allocations).length === 0) {
-      const equalPercentage = 100 / selectedStocks.length;
-      const equalAmount = totalInvestment / selectedStocks.length;
+    if (selectedStocks.length > 0) {
+      // 기존 할당이 없거나, 선택된 주식 수와 다른 경우 초기화
+      const needsReset = Object.keys(allocations).length === 0 ||
+                        Object.keys(allocations).length !== selectedStocks.length ||
+                        !selectedStocks.every(stock => allocations[stock.symbol]);
 
-      const initialAllocations: Record<string, StockAllocation> = {};
-      selectedStocks.forEach(stock => {
-        initialAllocations[stock.symbol] = {
-          symbol: stock.symbol,
-          amount: equalAmount,
-          percentage: equalPercentage,
-          shares: Math.floor(equalAmount / stock.price),
-          isCustomSet: false
-        };
-      });
-      setAllocations(initialAllocations);
+      if (needsReset) {
+        console.log('Portfolio: Initializing allocations for', selectedStocks.length, 'stocks');
+
+        const equalPercentage = 100 / selectedStocks.length;
+        const equalAmount = totalInvestment / selectedStocks.length;
+
+        const initialAllocations: Record<string, StockAllocation> = {};
+        selectedStocks.forEach(stock => {
+          initialAllocations[stock.symbol] = {
+            symbol: stock.symbol,
+            amount: equalAmount,
+            percentage: equalPercentage,
+            shares: Math.floor(equalAmount / stock.price),
+            isCustomSet: false
+          };
+        });
+        setAllocations(initialAllocations);
+      }
     }
-  }, [selectedStocks, totalInvestment, allocations]);
+  }, [selectedStocks.length, totalInvestment]);
 
   // 배분 방식 변경 핸들러
   const handleAllocationMethodChange = (method: AllocationMethod) => {
@@ -273,32 +318,51 @@ export default function PortfolioPage() {
 
   // 포트폴리오 검증
   const validation = useMemo(() => {
-    const totalAllocated = Object.values(allocations).reduce((sum, alloc) => sum + alloc.percentage, 0);
+    // 기본값 설정
+    if (selectedStocks.length === 0 || Object.keys(allocations).length === 0) {
+      return {
+        isComplete: false,
+        totalAllocated: 0,
+        stockCount: 0,
+        maxPositions: riskManagement.maxPositions,
+        isWithinPositionLimit: false,
+        maxSectorConcentration: 0,
+        isDiversified: true,
+        riskLevel: 'Medium' as const,
+        avgScore: 0
+      };
+    }
+
+    const totalAllocated = Object.values(allocations).reduce((sum, alloc) => sum + (alloc.percentage || 0), 0);
     const stockCount = selectedStocks.length;
     const maxPositions = riskManagement.maxPositions;
 
     // 섹터 분산도 계산
     const sectorCounts: Record<string, number> = {};
     selectedStocks.forEach(stock => {
-      sectorCounts[stock.sector] = (sectorCounts[stock.sector] || 0) + 1;
+      const sector = stock.sector || 'Unknown';
+      sectorCounts[sector] = (sectorCounts[sector] || 0) + 1;
     });
     const sectorValues = Object.values(sectorCounts);
     const maxSectorConcentration = sectorValues.length > 0 ? Math.max(...sectorValues) / stockCount : 0;
 
     // 위험 점수 계산 (평균 점수 기반)
-    const avgScore = selectedStocks.reduce((sum, stock) => sum + stock.score, 0) / stockCount;
+    const avgScore = stockCount > 0 ? selectedStocks.reduce((sum, stock) => sum + (stock.score || 0), 0) / stockCount : 0;
     const riskLevel = avgScore >= 80 ? 'Low' : avgScore >= 60 ? 'Medium' : 'High';
 
+    // 할당 완료 조건: 총 할당이 99% ~ 101% 사이
+    const isComplete = !isNaN(totalAllocated) && totalAllocated >= 99 && totalAllocated <= 101;
+
     return {
-      isComplete: Math.abs(totalAllocated - 100) < 0.01,
-      totalAllocated,
+      isComplete,
+      totalAllocated: isNaN(totalAllocated) ? 0 : totalAllocated,
       stockCount,
       maxPositions,
-      isWithinPositionLimit: stockCount <= maxPositions,
+      isWithinPositionLimit: stockCount <= maxPositions && stockCount > 0,
       maxSectorConcentration,
       isDiversified: maxSectorConcentration <= 0.5,
       riskLevel,
-      avgScore
+      avgScore: isNaN(avgScore) ? 0 : avgScore
     };
   }, [allocations, selectedStocks, riskManagement.maxPositions]);
 
@@ -330,6 +394,21 @@ export default function PortfolioPage() {
           </div>
         </div>
 
+        {/* Debug information - Only render on client side */}
+        {isClient && (
+          <Card className="border-yellow-200 bg-yellow-50">
+            <CardContent className="py-3">
+              <div className="text-sm text-yellow-800">
+                <p><strong>Debug Info:</strong></p>
+                <p>Portfolio Store Stocks: {portfolioStocks.length}</p>
+                <p>URL Selected Symbols: {selectedSymbols.length}</p>
+                <p>Loading State: {isLoading ? 'Loading' : 'Not Loading'}</p>
+                {error && <p>Error: {error}</p>}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <Card>
           <CardContent className="py-12">
             <div className="text-center text-muted-foreground">
@@ -346,6 +425,78 @@ export default function PortfolioPage() {
     );
   }
 
+  // 로딩 상태
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Portfolio Management</h1>
+            <p className="text-muted-foreground">
+              Loading selected stocks using {tradingMode?.is_mock ? 'mock' : 'real'} trading data...
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center justify-center p-8">
+          <Loader2 className="h-8 w-8 animate-spin mr-2" />
+          <span>Loading stock data...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // 에러 상태
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Portfolio Management</h1>
+            <p className="text-muted-foreground">Failed to load stock data</p>
+          </div>
+        </div>
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+          <div className="flex items-center space-x-2">
+            <AlertCircle className="h-4 w-4 text-red-600" />
+            <h3 className="text-sm font-medium text-red-800">Loading Error</h3>
+          </div>
+          <p className="mt-2 text-sm text-red-700">{error}</p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => router.push('/filtering')}
+            className="mt-3"
+          >
+            Back to Filtering
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // 선택된 종목이 없는 경우
+  if (selectedStocks.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Portfolio Management</h1>
+            <p className="text-muted-foreground">No stocks selected for portfolio</p>
+          </div>
+        </div>
+        <div className="text-center p-8">
+          <h3 className="text-lg font-medium mb-2">No Stocks Selected</h3>
+          <p className="text-muted-foreground mb-4">
+            Please select stocks from the filtering page to build your portfolio.
+          </p>
+          <Button onClick={() => router.push('/filtering')}>
+            Go to Stock Filtering
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* 페이지 헤더 */}
@@ -353,7 +504,7 @@ export default function PortfolioPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Portfolio Management</h1>
           <p className="text-muted-foreground">
-            Allocate investments across {selectedStocks.length} selected stocks
+            Allocate investments across {selectedStocks.length} selected stocks using {tradingMode?.is_mock ? 'mock' : 'real'} trading data
           </p>
         </div>
         <div className="flex items-center space-x-2">
@@ -608,6 +759,17 @@ export default function PortfolioPage() {
               }`}>
                 {validation.riskLevel}
               </span>
+            </div>
+
+            {/* Debug validation info */}
+            <div className="space-y-1 text-xs text-muted-foreground bg-gray-50 p-2 rounded">
+              <div>Debug Validation:</div>
+              <div>• Total Allocated: {validation.totalAllocated.toFixed(2)}%</div>
+              <div>• Is Complete: {validation.isComplete ? 'Yes' : 'No'}</div>
+              <div>• Position Limit: {validation.stockCount}/{validation.maxPositions}</div>
+              <div>• Within Limit: {validation.isWithinPositionLimit ? 'Yes' : 'No'}</div>
+              <div>• Allocations Count: {Object.keys(allocations).length}</div>
+              <div>• Selected Stocks: {selectedStocks.length}</div>
             </div>
 
             <Button

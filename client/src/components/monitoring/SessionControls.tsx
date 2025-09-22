@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +14,7 @@ import type {
   StartMonitoringRequest,
   PHASE_LABELS
 } from '@/types/monitoring';
+import type { FilteredStock } from '@/types/trading';
 
 interface SessionControlsProps {
   status: MonitoringSessionStatus | null;
@@ -39,17 +40,113 @@ export function SessionControls({
   onStartSession,
   onStopSession
 }: SessionControlsProps) {
-  const [sampleTargets, setSampleTargets] = useState([
-    { symbol: 'A005930', stock_name: '삼성전자', entry_price: 71500, buy_threshold: 2.0 },
-    { symbol: 'A000660', stock_name: 'SK하이닉스', entry_price: 128000, buy_threshold: 2.0 },
-    { symbol: 'A035420', stock_name: 'NAVER', entry_price: 185000, buy_threshold: 2.0 }
-  ]);
+  const [portfolioTargets, setPortfolioTargets] = useState<StartMonitoringRequest['targets']>([]);
+  const [hasPortfolioData, setHasPortfolioData] = useState(false);
+
+  // Load confirmed portfolio data for monitoring targets
+  useEffect(() => {
+    const loadPortfolioTargets = () => {
+      try {
+        console.log('📦 Loading portfolio targets from localStorage...');
+        console.log('📦 Available localStorage keys:', Object.keys(localStorage));
+
+        // Try confirmed portfolio first
+        const confirmedPortfolioData = localStorage.getItem('confirmed-portfolio');
+        console.log('📋 Confirmed portfolio raw data:', confirmedPortfolioData);
+
+        if (confirmedPortfolioData) {
+          const portfolio = JSON.parse(confirmedPortfolioData);
+          console.log('📋 Parsed confirmed portfolio:', portfolio);
+          console.log('📋 Selected stocks in confirmed portfolio:', portfolio.selectedStocks);
+
+          if (portfolio.selectedStocks && Array.isArray(portfolio.selectedStocks) && portfolio.selectedStocks.length > 0) {
+            const targets: StartMonitoringRequest['targets'] = portfolio.selectedStocks.map((stock: FilteredStock) => ({
+              symbol: stock.symbol,
+              stock_name: stock.name,
+              entry_price: stock.price,
+              buy_threshold: 2.0
+            }));
+
+            setPortfolioTargets(targets);
+            setHasPortfolioData(true);
+            console.log('✅ Successfully loaded confirmed portfolio targets:', targets);
+            console.log('✅ Portfolio targets count:', targets.length);
+            return; // Exit early if successful
+          } else {
+            console.log('📋 Confirmed portfolio exists but no valid selectedStocks array');
+          }
+        }
+
+        // Try portfolio store as fallback
+        const portfolioStoreData = localStorage.getItem('portfolio-storage');
+        console.log('🏪 Portfolio store raw data:', portfolioStoreData);
+
+        if (portfolioStoreData) {
+          const storeData = JSON.parse(portfolioStoreData);
+          console.log('🏪 Parsed portfolio store:', storeData);
+          console.log('🏪 Selected stocks in store:', storeData.state?.selectedStocks);
+
+          if (storeData.state?.selectedStocks && Array.isArray(storeData.state.selectedStocks) && storeData.state.selectedStocks.length > 0) {
+            const targets: StartMonitoringRequest['targets'] = storeData.state.selectedStocks.map((stock: FilteredStock) => ({
+              symbol: stock.symbol,
+              stock_name: stock.name,
+              entry_price: stock.price,
+              buy_threshold: 2.0
+            }));
+
+            setPortfolioTargets(targets);
+            setHasPortfolioData(true);
+            console.log('✅ Successfully loaded portfolio store targets:', targets);
+            console.log('✅ Portfolio targets count:', targets.length);
+            return; // Exit early if successful
+          } else {
+            console.log('🏪 Portfolio store exists but no valid selectedStocks array');
+          }
+        }
+
+        // No portfolio data found
+        console.warn('⚠️ No portfolio data found in localStorage');
+        console.warn('⚠️ Confirmed portfolio data:', confirmedPortfolioData);
+        console.warn('⚠️ Portfolio store data:', portfolioStoreData);
+        setPortfolioTargets([]);
+        setHasPortfolioData(false);
+
+      } catch (error) {
+        console.error('❌ Failed to load portfolio data:', error);
+        setPortfolioTargets([]);
+        setHasPortfolioData(false);
+      }
+    };
+
+    loadPortfolioTargets();
+  }, []);
 
   const handleStartSession = async () => {
     try {
-      await onStartSession(sampleTargets);
+      console.log('🚀 Starting monitoring session with targets:', portfolioTargets);
+      console.log('📊 Portfolio targets count:', portfolioTargets.length);
+      console.log('📋 Has portfolio data:', hasPortfolioData);
+
+      if (portfolioTargets.length === 0) {
+        console.error('⚠️ Cannot start monitoring: No portfolio targets available');
+        alert('포트폴리오 데이터가 없습니다.\n\nStock Filtering → Portfolio Management에서 포트폴리오를 구성한 후 다시 시도해주세요.');
+        return;
+      }
+
+      console.log('🔄 Calling onStartSession with targets...');
+      const result = await onStartSession(portfolioTargets);
+      console.log('✅ Session start request completed with result:', result);
+
+      if (result === false) {
+        console.error('❌ Session start returned false - check error state');
+        alert('모니터링 세션 시작에 실패했습니다. 콘솔을 확인해주세요.');
+      } else {
+        console.log('✅ Session started successfully');
+        alert('모니터링 세션이 성공적으로 시작되었습니다!');
+      }
     } catch (err) {
-      console.error('Failed to start session:', err);
+      console.error('❌ Failed to start session:', err);
+      alert(`세션 시작 중 오류가 발생했습니다: ${err instanceof Error ? err.message : '알 수 없는 오류'}`);
     }
   };
 
@@ -167,11 +264,17 @@ export function SessionControls({
             {!status?.is_running ? (
               <Button
                 onClick={handleStartSession}
-                disabled={isLoading}
+                disabled={isLoading || portfolioTargets.length === 0}
                 className="flex-1"
+                variant={portfolioTargets.length === 0 ? "outline" : "default"}
               >
                 <Play className="h-4 w-4 mr-2" />
-                {isLoading ? '시작 중...' : '모니터링 시작'}
+                {isLoading
+                  ? '시작 중...'
+                  : portfolioTargets.length === 0
+                    ? '포트폴리오 구성 필요'
+                    : '모니터링 시작'
+                }
               </Button>
             ) : (
               <Button
@@ -186,28 +289,63 @@ export function SessionControls({
             )}
           </div>
 
-          {/* Sample Targets Configuration */}
+          {/* Portfolio Targets Configuration */}
           {!status?.is_running && (
             <div className="space-y-3">
-              <Label className="text-sm font-medium">샘플 모니터링 대상</Label>
-              <div className="space-y-2">
-                {sampleTargets.map((target, index) => (
-                  <div key={target.symbol} className="flex items-center gap-3 p-3 border rounded-lg">
-                    <div className="flex-1">
-                      <div className="font-medium">{target.stock_name}</div>
-                      <div className="text-sm text-muted-foreground">{target.symbol}</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-medium">₩{target.entry_price.toLocaleString()}</div>
-                      <div className="text-sm text-muted-foreground">
-                        임계값: {target.buy_threshold}%
+              <Label className="text-sm font-medium">
+                {hasPortfolioData ? '포트폴리오 모니터링 대상' : '모니터링 대상'}
+              </Label>
+
+              {portfolioTargets.length > 0 ? (
+                <div className="space-y-2">
+                  {portfolioTargets.map((target, index) => (
+                    <div key={target.symbol} className="flex items-center gap-3 p-3 border rounded-lg">
+                      <div className="flex-1">
+                        <div className="font-medium">{target.stock_name}</div>
+                        <div className="text-sm text-muted-foreground">{target.symbol}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-medium">₩{target.entry_price.toLocaleString()}</div>
+                        <div className="text-sm text-muted-foreground">
+                          임계값: {target.buy_threshold}%
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-4 border border-dashed rounded-lg text-center text-muted-foreground space-y-3">
+                  <p className="text-sm">포트폴리오 데이터가 없습니다</p>
+                  <p className="text-xs">
+                    Stock Filtering → Portfolio Management에서 포트폴리오를 구성해주세요
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      // Create test portfolio data for debugging
+                      const testPortfolio = {
+                        selectedStocks: [
+                          { symbol: '005930', name: '삼성전자', price: 75000 },
+                          { symbol: '000660', name: 'SK하이닉스', price: 125000 }
+                        ]
+                      };
+                      localStorage.setItem('confirmed-portfolio', JSON.stringify(testPortfolio));
+                      console.log('🧪 Created test portfolio data');
+                      window.location.reload();
+                    }}
+                    className="text-xs"
+                  >
+                    테스트 포트폴리오 생성 (디버깅용)
+                  </Button>
+                </div>
+              )}
+
               <p className="text-xs text-muted-foreground">
-                * 실제 운용 시에는 포트폴리오에서 선택된 종목들이 자동으로 설정됩니다
+                {hasPortfolioData
+                  ? '* 포트폴리오에서 선택된 종목들을 자동으로 모니터링합니다'
+                  : '* Stock Filtering 페이지에서 종목을 선택하고 Portfolio Management에서 확정해주세요'
+                }
               </p>
             </div>
           )}

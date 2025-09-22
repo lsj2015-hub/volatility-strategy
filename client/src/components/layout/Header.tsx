@@ -7,10 +7,12 @@
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Activity, Settings, TrendingUp, BarChart3, ListOrdered } from 'lucide-react';
+import { Activity, Settings, TrendingUp } from 'lucide-react';
 import { TradingModeToggle } from './TradingModeToggle';
 
 export function Header() {
+
+
   return (
     <header className="fixed top-0 left-0 right-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="max-w-screen-2xl mx-auto px-4 lg:px-6 xl:px-8 flex h-14 items-center">
@@ -24,21 +26,7 @@ export function Header() {
           </Link>
         </div>
 
-        {/* 네비게이션 메뉴 */}
-        <nav className="hidden md:flex items-center space-x-6 mx-6">
-          <Link href="/trading-dashboard" className="text-sm font-medium hover:text-primary transition-colors">
-            <div className="flex items-center space-x-1">
-              <BarChart3 className="h-4 w-4" />
-              <span>Dashboard</span>
-            </div>
-          </Link>
-          <Link href="/trading-control" className="text-sm font-medium hover:text-primary transition-colors">
-            <div className="flex items-center space-x-1">
-              <ListOrdered className="h-4 w-4" />
-              <span>Control</span>
-            </div>
-          </Link>
-        </nav>
+
 
         {/* 우측 영역 */}
         <div className="ml-auto flex items-center space-x-4">
@@ -46,9 +34,12 @@ export function Header() {
           <TradingModeToggle />
 
           {/* 시장 상태 */}
-          <Badge variant="outline" className="hidden sm:flex">
+          <Badge
+            variant="outline"
+            className="hidden sm:flex text-orange-600 border-orange-600"
+          >
             <Activity className="mr-1 h-3 w-3" />
-            Market Open
+            Market Closed
           </Badge>
 
           {/* 설정 버튼 */}
