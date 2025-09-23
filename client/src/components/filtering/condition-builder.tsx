@@ -117,7 +117,11 @@ export function ConditionBuilder({
           <h2 className="text-lg font-semibold">필터 설정</h2>
         </div>
         <div className="flex items-center space-x-2">
-          <Button onClick={() => onFilterRun(conditions)} disabled={isLoading}>
+          <Button
+            onClick={() => onFilterRun(conditions)}
+            disabled={isLoading}
+            className="bg-blue-600 hover:bg-blue-700 border-2 border-blue-700 text-white font-semibold shadow-md hover:shadow-lg transition-all duration-200"
+          >
             <Play className="h-4 w-4 mr-2" />
             {isLoading ? '실행 중...' : '필터 실행'}
           </Button>

@@ -164,7 +164,7 @@ export function FilterSummary({
             {onProceedToPortfolio && selectedStocks.length > 0 && (
               <Button
                 size="sm"
-                className="w-full"
+                className="w-full bg-green-600 hover:bg-green-700 border-2 border-green-700 text-white font-semibold shadow-md hover:shadow-lg transition-all duration-200"
                 onClick={onProceedToPortfolio}
               >
                 <CheckCircle2 className="h-4 w-4 mr-2" />

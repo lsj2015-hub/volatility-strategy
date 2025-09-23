@@ -68,9 +68,16 @@ export function TradingModeToggle() {
     <div className="flex items-center space-x-4">
       {/* Current Mode Display */}
       <div className="flex items-center space-x-2">
-        <Badge variant={getModeColor()} className="flex items-center space-x-1">
+        <Badge
+          variant={getModeColor()}
+          className={`flex items-center space-x-1 ${
+            mode?.is_mock_trading
+              ? 'bg-blue-100 text-blue-800 border-blue-200'
+              : 'bg-red-100 text-red-800 border-red-200'
+          }`}
+        >
           {getModeIcon()}
-          <span>{getModeText()}</span>
+          <span className="font-medium">{getModeText()}</span>
         </Badge>
 
         {mode?.api_status && (
@@ -83,13 +90,17 @@ export function TradingModeToggle() {
 
       {/* Mode Switch */}
       <div className="flex items-center space-x-2">
-        <span className="text-sm text-muted-foreground">모의투자</span>
+        <span className={`text-sm ${mode?.is_mock_trading ? 'text-blue-600 font-medium' : 'text-gray-500'}`}>
+          모의투자
+        </span>
         <Switch
           checked={mode ? !mode.is_mock_trading : false}
           onCheckedChange={(checked) => handleModeSwitch(!checked)}
           disabled={isLoading || !mode}
         />
-        <span className="text-sm text-muted-foreground">실거래</span>
+        <span className={`text-sm ${mode?.is_mock_trading ? 'text-gray-500' : 'text-red-600 font-medium'}`}>
+          실거래
+        </span>
       </div>
 
       {/* Loading Indicator */}

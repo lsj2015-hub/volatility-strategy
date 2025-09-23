@@ -12,7 +12,7 @@ export function Footer() {
       <div className="max-w-screen-2xl mx-auto px-4 lg:px-6 xl:px-8 flex h-12 items-center justify-between">
         {/* 좌측 정보 */}
         <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-          <span>© 2024 Volatility Trading Strategy</span>
+          <span>© 2025 Volatility Trading Strategy</span>
         </div>
 
         {/* 우측 상태 정보 */}

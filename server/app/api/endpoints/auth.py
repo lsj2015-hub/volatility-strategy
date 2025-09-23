@@ -8,7 +8,8 @@ import structlog
 
 from ...services.kis_api import get_kis_client, KISAPIClient
 from ...utils.config import get_settings, Settings
-from ...schemas.api import ApiResponse
+from ...schemas.api import ApiResponse, SaveApiKeysRequest
+from ...utils.env_manager import env_manager
 
 logger = structlog.get_logger(__name__)
 router = APIRouter()
@@ -44,7 +45,7 @@ async def get_auth_status(
         raise HTTPException(status_code=500, detail=f"인증 상태 확인 실패: {str(e)}")
 
 
-@router.post("/auth/refresh")
+@router.post("/auth/refresh", response_model=ApiResponse[dict])
 async def refresh_token(kis_client: KISAPIClient = Depends(get_kis_client)):
     """KIS API 토큰 갱신"""
     try:
@@ -53,19 +54,61 @@ async def refresh_token(kis_client: KISAPIClient = Depends(get_kis_client)):
 
         logger.info("KIS API token refreshed successfully")
 
-        return {
+        refresh_data = {
             "success": True,
             "message": "토큰이 성공적으로 갱신되었습니다",
             "token_expires_at": kis_client.token_expires_at.isoformat(),
             "timestamp": datetime.now().isoformat()
         }
 
+        return ApiResponse(
+            success=True,
+            data=refresh_data,
+            message="KIS API token refreshed successfully"
+        )
+
     except Exception as e:
         logger.error(f"Failed to refresh token: {str(e)}")
         raise HTTPException(status_code=500, detail=f"토큰 갱신 실패: {str(e)}")
 
 
-@router.get("/auth/test")
+@router.post("/auth/save-keys", response_model=ApiResponse[dict])
+async def save_api_keys(request: SaveApiKeysRequest):
+    """KIS API 키를 .env 파일에 저장"""
+    try:
+        # API 키를 .env 파일에 저장
+        success = env_manager.save_kis_api_keys(
+            app_key=request.app_key,
+            app_secret=request.app_secret
+        )
+
+        if not success:
+            raise HTTPException(status_code=500, detail="API 키 저장에 실패했습니다")
+
+        logger.info("KIS API keys saved successfully")
+
+        save_result_data = {
+            "success": True,
+            "message": "API 키가 성공적으로 저장되었습니다",
+            "app_key_length": len(request.app_key),
+            "app_secret_length": len(request.app_secret),
+            "timestamp": datetime.now().isoformat()
+        }
+
+        return ApiResponse(
+            success=True,
+            data=save_result_data,
+            message="API keys saved successfully"
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to save API keys: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"API 키 저장 실패: {str(e)}")
+
+
+@router.get("/auth/test", response_model=ApiResponse[dict])
 async def test_api_connection(kis_client: KISAPIClient = Depends(get_kis_client)):
     """KIS API 연결 테스트"""
     try:
@@ -74,7 +117,7 @@ async def test_api_connection(kis_client: KISAPIClient = Depends(get_kis_client)
 
         logger.info("KIS API connection test successful")
 
-        return {
+        test_result_data = {
             "success": True,
             "message": "KIS API 연결이 정상적으로 작동합니다",
             "test_result": {
@@ -83,6 +126,12 @@ async def test_api_connection(kis_client: KISAPIClient = Depends(get_kis_client)
             },
             "timestamp": datetime.now().isoformat()
         }
+
+        return ApiResponse(
+            success=True,
+            data=test_result_data,
+            message="KIS API connection test completed successfully"
+        )
 
     except Exception as e:
         logger.error(f"KIS API connection test failed: {str(e)}")

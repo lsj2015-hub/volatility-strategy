@@ -94,8 +94,8 @@ export function useDashboardData() {
 
     try {
       const [topStocks, volumeRanking] = await Promise.all([
-        StocksService.getAllStocks({ limit: 10 }),
-        StocksService.getVolumeRanking({ limit: 10 })
+        StocksService.getAllStocks(),
+        StocksService.getVolumeRanking()
       ]);
 
       console.log('📊 Stock Data Loaded:', {

@@ -209,3 +209,6 @@ htmlcov/
 # Local configuration
 config.local.json
 settings.local.json
+
+# data
+data/*

@@ -40,10 +40,19 @@ export default function FilteringPage() {
   const [totalStocks, setTotalStocks] = useState<number>(0);
   const [filteringTime, setFilteringTime] = useState<number>(0);
 
-  // Load default settings on component mount
+  // Load default settings on component mount and when activePreset changes
   useEffect(() => {
-    setCurrentConditions(defaultConditions);
-  }, [defaultConditions]);
+    if (activePreset) {
+      const preset = presets.find(p => p.id === activePreset);
+      if (preset) {
+        console.log(`📋 Loading active preset "${preset.name}" conditions automatically`);
+        setCurrentConditions(preset.conditions);
+      }
+    } else {
+      console.log('📋 No active preset, using default conditions');
+      setCurrentConditions(defaultConditions);
+    }
+  }, [activePreset, presets, defaultConditions]);
 
   const handleLoadDefaultSettings = () => {
     if (activePreset) {
@@ -165,25 +174,39 @@ export default function FilteringPage() {
           <p className="text-muted-foreground">
             Real-time filtering using {tradingMode?.is_mock ? 'mock trading' : 'real trading'} data
           </p>
-          {activePreset && (
-            <div className="flex items-center space-x-2 mt-2">
-              <Badge variant={isUsingPreset ? "outline" : "secondary"}>
-                {isUsingPreset
-                  ? `Using: ${presets.find(p => p.id === activePreset)?.name}`
-                  : `Using: Custom`
-                }
-              </Badge>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleLoadDefaultSettings}
-                className="h-6 px-2 text-xs"
+          <div className="flex items-center space-x-2 mt-2">
+            {activePreset ? (
+              <>
+                <Badge
+                  variant={isUsingPreset ? "default" : "secondary"}
+                  className={`${
+                    isUsingPreset
+                      ? 'bg-green-600 hover:bg-green-700 text-white border-green-700'
+                      : 'bg-orange-100 text-orange-800 border-orange-200'
+                  } font-medium`}
+                >
+                  Using: {presets.find(p => p.id === activePreset)?.name || 'Unknown'}
+                  {!isUsingPreset && ' (Modified)'}
+                </Badge>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleLoadDefaultSettings}
+                  className="h-6 px-2 text-xs hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                >
+                  <RefreshCw className="h-3 w-3 mr-1" />
+                  Reset to Preset
+                </Button>
+              </>
+            ) : (
+              <Badge
+                variant="outline"
+                className="bg-gray-100 text-gray-700 border-gray-300 font-medium"
               >
-                <RefreshCw className="h-3 w-3 mr-1" />
-                Reset to Default
-              </Button>
-            </div>
-          )}
+                Using: Custom Settings
+              </Badge>
+            )}
+          </div>
         </div>
         <div className="flex items-center space-x-2">
           <Button variant="outline" size="sm" onClick={() => router.push('/settings')}>

@@ -8,3 +8,4 @@ export * from './trading-system';
 export * from './portfolio';
 export * from './websocket';
 export * from './monitoring';
+export * from './market';

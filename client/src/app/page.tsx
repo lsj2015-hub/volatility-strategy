@@ -6,6 +6,7 @@ import { Progress } from '@/components/ui/progress';
 import { TrendingUp, Clock, Activity, Wallet, BarChart3, AlertCircle, RefreshCw } from 'lucide-react';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { Button } from '@/components/ui/button';
+import { MarketIndicatorsDashboard } from '@/components/market-indicators';
 
 export default function Home() {
   const { data, actions } = useDashboardData();
@@ -48,7 +49,9 @@ export default function Home() {
       {/* 페이지 헤더 */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Trading Dashboard</h1>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Trading Dashboard
+          </h1>
           <p className="text-muted-foreground">
             Monitor your volatility trading strategy performance
           </p>
@@ -66,12 +69,20 @@ export default function Home() {
             onClick={actions.refreshAll}
             disabled={isLoading}
           >
-            <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            <RefreshCw
+              className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`}
+            />
             Refresh
           </Button>
-          <Badge variant={data.systemStatus?.api_connection ? "default" : "secondary"}>
+          <Badge
+            variant={
+              data.systemStatus?.api_connection ? 'default' : 'secondary'
+            }
+          >
             <Activity className="mr-2 h-4 w-4" />
-            {data.systemStatus?.api_connection ? 'API Connected' : 'API Disconnected'}
+            {data.systemStatus?.api_connection
+              ? 'API Connected'
+              : 'API Disconnected'}
           </Badge>
         </div>
       </div>
@@ -81,11 +92,15 @@ export default function Home() {
         {/* 거래 세션 상태 */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Current Session</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Current Session
+            </CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{fallbackData.tradingSession.day}</div>
+            <div className="text-2xl font-bold">
+              {fallbackData.tradingSession.day}
+            </div>
             <div className="flex items-center justify-between mt-2">
               <p className="text-xs text-muted-foreground">
                 {fallbackData.tradingSession.phase}
@@ -94,26 +109,35 @@ export default function Home() {
                 {fallbackData.tradingSession.timeRemaining}
               </Badge>
             </div>
-            <Progress value={fallbackData.tradingSession.progress} className="mt-2" />
+            <Progress
+              value={fallbackData.tradingSession.progress}
+              className="mt-2"
+            />
           </CardContent>
         </Card>
 
         {/* 포트폴리오 가치 */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Portfolio Value</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Portfolio Value
+            </CardTitle>
             <Wallet className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
               ₩{fallbackData.portfolioSummary.totalValue.toLocaleString()}
             </div>
-            <p className={`text-xs ${
-              fallbackData.portfolioSummary.unrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'
-            }`}>
-              {fallbackData.portfolioSummary.unrealizedPnL >= 0 ? '+' : ''}
-              ₩{fallbackData.portfolioSummary.unrealizedPnL.toLocaleString()}
-              ({fallbackData.portfolioSummary.unrealizedPnLPercent.toFixed(2)}%)
+            <p
+              className={`text-xs ${
+                fallbackData.portfolioSummary.unrealizedPnL >= 0
+                  ? 'text-green-600'
+                  : 'text-red-600'
+              }`}
+            >
+              {fallbackData.portfolioSummary.unrealizedPnL >= 0 ? '+' : ''}₩
+              {fallbackData.portfolioSummary.unrealizedPnL.toLocaleString()}(
+              {fallbackData.portfolioSummary.unrealizedPnLPercent.toFixed(2)}%)
             </p>
           </CardContent>
         </Card>
@@ -121,15 +145,21 @@ export default function Home() {
         {/* 오늘의 성과 */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Today&apos;s P&L</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Today&apos;s P&L
+            </CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${
-              fallbackData.portfolioSummary.dayChange >= 0 ? 'text-green-600' : 'text-red-600'
-            }`}>
-              {fallbackData.portfolioSummary.dayChange >= 0 ? '+' : ''}
-              ₩{fallbackData.portfolioSummary.dayChange.toLocaleString()}
+            <div
+              className={`text-2xl font-bold ${
+                fallbackData.portfolioSummary.dayChange >= 0
+                  ? 'text-green-600'
+                  : 'text-red-600'
+              }`}
+            >
+              {fallbackData.portfolioSummary.dayChange >= 0 ? '+' : ''}₩
+              {fallbackData.portfolioSummary.dayChange.toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground">
               {fallbackData.portfolioSummary.positions} active positions
@@ -140,13 +170,18 @@ export default function Home() {
         {/* 필터링 통계 */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Filtering Stats</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Filtering Stats
+            </CardTitle>
             <BarChart3 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{fallbackData.todayStats.filteredStocks}</div>
+            <div className="text-2xl font-bold">
+              {fallbackData.todayStats.filteredStocks}
+            </div>
             <p className="text-xs text-muted-foreground">
-              stocks found (avg score: {fallbackData.todayStats.avgScore.toFixed(1)})
+              stocks found (avg score:{' '}
+              {fallbackData.todayStats.avgScore.toFixed(1)})
             </p>
           </CardContent>
         </Card>
@@ -159,7 +194,7 @@ export default function Home() {
           <CardHeader>
             <CardTitle className="flex items-center">
               <TrendingUp className="mr-2 h-5 w-5" />
-              Top Stocks (KIS API)
+              Top Gainers (수익률 상위)
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -180,18 +215,29 @@ export default function Home() {
             ) : (
               <div className="space-y-2">
                 {data.topStocks.slice(0, 10).map((stock, index) => (
-                  <div key={stock.symbol} className="flex items-center justify-between text-sm">
+                  <div
+                    key={`top-stock-${index}-${stock.name}`}
+                    className="flex items-center justify-between text-sm"
+                  >
                     <div className="flex items-center space-x-2">
-                      <span className="text-muted-foreground w-4">{index + 1}</span>
+                      <span className="text-muted-foreground w-4">
+                        {index + 1}
+                      </span>
                       <span className="font-medium">{stock.name}</span>
-                      <span className="text-xs text-muted-foreground">({stock.symbol})</span>
+                      <span className="text-xs text-muted-foreground">
+                        ({stock.symbol})
+                      </span>
                     </div>
                     <div className="flex items-center space-x-2">
                       <span className="font-mono">
                         {stock.currentPrice?.toLocaleString()}원
                       </span>
-                      <Badge variant={stock.change >= 0 ? "default" : "destructive"} className="text-xs">
-                        {stock.changePercent >= 0 ? '+' : ''}{stock.changePercent?.toFixed(2)}%
+                      <Badge
+                        variant={stock.change >= 0 ? 'default' : 'destructive'}
+                        className="text-xs"
+                      >
+                        {stock.changePercent >= 0 ? '+' : ''}
+                        {stock.changePercent?.toFixed(2)}%
                       </Badge>
                     </div>
                   </div>
@@ -211,7 +257,7 @@ export default function Home() {
           <CardHeader>
             <CardTitle className="flex items-center">
               <BarChart3 className="mr-2 h-5 w-5" />
-              Volume Ranking
+              Volume Leaders (거래량 상위)
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -232,13 +278,22 @@ export default function Home() {
             ) : (
               <div className="space-y-2">
                 {data.volumeRanking.slice(0, 10).map((stock, index) => (
-                  <div key={stock.symbol || index} className="flex items-center justify-between text-sm">
+                  <div
+                    key={stock.symbol || index}
+                    className="flex items-center justify-between text-sm"
+                  >
                     <div className="flex items-center space-x-2">
-                      <span className="text-muted-foreground w-4">{index + 1}</span>
-                      <span className="font-medium">{stock.name || stock.hts_kor_isnm}</span>
+                      <span className="text-muted-foreground w-4">
+                        {index + 1}
+                      </span>
+                      <span className="font-medium">
+                        {stock.name || stock.hts_kor_isnm}
+                      </span>
                     </div>
                     <div className="text-xs font-mono text-muted-foreground">
-                      {stock.volume ? `${(stock.volume / 1000).toFixed(0)}K` : 'N/A'}
+                      {stock.volume
+                        ? `${(stock.volume / 1000).toFixed(0)}K`
+                        : 'N/A'}
                     </div>
                   </div>
                 ))}
@@ -252,6 +307,9 @@ export default function Home() {
           </CardContent>
         </Card>
       </div>
+
+      {/* 시장 지표 대시보드 */}
+      <MarketIndicatorsDashboard refreshInterval={30000} className="w-full" />
 
       {/* 메인 콘텐츠 영역 */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
@@ -277,20 +335,36 @@ export default function Home() {
               <h4 className="text-sm font-medium">Strategy Timeline (Day 1)</h4>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">15:30 - Market Close & Filtering</span>
-                  <Badge variant="default" className="text-xs">Current</Badge>
+                  <span className="text-muted-foreground">
+                    15:30 - Market Close & Filtering
+                  </span>
+                  <Badge variant="default" className="text-xs">
+                    Current
+                  </Badge>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">15:35 - Portfolio Building</span>
-                  <Badge variant="outline" className="text-xs">Next</Badge>
+                  <span className="text-muted-foreground">
+                    15:35 - Portfolio Building
+                  </span>
+                  <Badge variant="outline" className="text-xs">
+                    Next
+                  </Badge>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">16:00 - After-hours Monitoring</span>
-                  <Badge variant="outline" className="text-xs">Scheduled</Badge>
+                  <span className="text-muted-foreground">
+                    16:00 - After-hours Monitoring
+                  </span>
+                  <Badge variant="outline" className="text-xs">
+                    Scheduled
+                  </Badge>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">17:40 - Session End</span>
-                  <Badge variant="outline" className="text-xs">Scheduled</Badge>
+                  <span className="text-muted-foreground">
+                    17:40 - Session End
+                  </span>
+                  <Badge variant="outline" className="text-xs">
+                    Scheduled
+                  </Badge>
                 </div>
               </div>
             </div>
@@ -307,13 +381,23 @@ export default function Home() {
               <div className="flex items-center justify-between">
                 <span className="text-sm">API Connection</span>
                 <div className="flex items-center">
-                  <div className={`h-2 w-2 rounded-full mr-2 ${
-                    data.systemStatus?.api_connection ? 'bg-green-500' : 'bg-red-500'
-                  }`} />
-                  <span className={`text-sm ${
-                    data.systemStatus?.api_connection ? 'text-green-600' : 'text-red-600'
-                  }`}>
-                    {data.systemStatus?.api_connection ? 'Connected' : 'Disconnected'}
+                  <div
+                    className={`h-2 w-2 rounded-full mr-2 ${
+                      data.systemStatus?.api_connection
+                        ? 'bg-green-500'
+                        : 'bg-red-500'
+                    }`}
+                  />
+                  <span
+                    className={`text-sm ${
+                      data.systemStatus?.api_connection
+                        ? 'text-green-600'
+                        : 'text-red-600'
+                    }`}
+                  >
+                    {data.systemStatus?.api_connection
+                      ? 'Connected'
+                      : 'Disconnected'}
                   </span>
                 </div>
               </div>
@@ -321,12 +405,20 @@ export default function Home() {
               <div className="flex items-center justify-between">
                 <span className="text-sm">KIS API</span>
                 <div className="flex items-center">
-                  <div className={`h-2 w-2 rounded-full mr-2 ${
-                    data.systemStatus?.kis_api ? 'bg-green-500' : 'bg-yellow-500'
-                  }`} />
-                  <span className={`text-sm ${
-                    data.systemStatus?.kis_api ? 'text-green-600' : 'text-yellow-600'
-                  }`}>
+                  <div
+                    className={`h-2 w-2 rounded-full mr-2 ${
+                      data.systemStatus?.kis_api
+                        ? 'bg-green-500'
+                        : 'bg-yellow-500'
+                    }`}
+                  />
+                  <span
+                    className={`text-sm ${
+                      data.systemStatus?.kis_api
+                        ? 'text-green-600'
+                        : 'text-yellow-600'
+                    }`}
+                  >
                     {data.systemStatus?.kis_api ? 'Active' : 'Standby'}
                   </span>
                 </div>
@@ -335,16 +427,28 @@ export default function Home() {
               <div className="flex items-center justify-between">
                 <span className="text-sm">Data Stream</span>
                 <div className="flex items-center">
-                  <div className={`h-2 w-2 rounded-full mr-2 ${
-                    data.systemStatus?.data_stream === 'active' ? 'bg-green-500' :
-                    data.systemStatus?.data_stream === 'standby' ? 'bg-yellow-500' : 'bg-red-500'
-                  }`} />
-                  <span className={`text-sm ${
-                    data.systemStatus?.data_stream === 'active' ? 'text-green-600' :
-                    data.systemStatus?.data_stream === 'standby' ? 'text-yellow-600' : 'text-red-600'
-                  }`}>
-                    {data.systemStatus?.data_stream?.charAt(0).toUpperCase() +
-                     data.systemStatus?.data_stream?.slice(1) || 'Unknown'}
+                  <div
+                    className={`h-2 w-2 rounded-full mr-2 ${
+                      data.systemStatus?.data_stream === 'active'
+                        ? 'bg-green-500'
+                        : data.systemStatus?.data_stream === 'standby'
+                        ? 'bg-yellow-500'
+                        : 'bg-red-500'
+                    }`}
+                  />
+                  <span
+                    className={`text-sm ${
+                      data.systemStatus?.data_stream === 'active'
+                        ? 'text-green-600'
+                        : data.systemStatus?.data_stream === 'standby'
+                        ? 'text-yellow-600'
+                        : 'text-red-600'
+                    }`}
+                  >
+                    {data.systemStatus?.data_stream
+                      ? data.systemStatus.data_stream.charAt(0).toUpperCase() +
+                        data.systemStatus.data_stream.slice(1)
+                      : 'Unknown'}
                   </span>
                 </div>
               </div>

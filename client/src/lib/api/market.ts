@@ -4,96 +4,63 @@
  */
 
 import { apiClient } from './client';
+import type { MarketIndicesResponse, IndexData } from '@/types';
 
-export interface MarketIndicators {
-  kospi: {
-    current: number;
-    change: number;
-    change_rate: number;
-    volume: number;
-    status: 'open' | 'closed';
-  };
-  kosdaq: {
-    current: number;
-    change: number;
-    change_rate: number;
-    volume: number;
-    status: 'open' | 'closed';
-  };
-  usd_krw: {
-    current: number;
-    change: number;
-    change_rate: number;
-    status: 'active' | 'closed';
-  };
-  volume_leaders: Array<{
-    symbol: string;
-    name: string;
-    volume: number;
-    price: number;
-    change_rate: number;
-  }>;
-  market_status: {
-    is_open: boolean;
-    session: 'pre_market' | 'regular' | 'after_hours' | 'closed' | 'weekend';
-    next_open: string;
-    last_updated: string;
-  };
-}
+/**
+ * KOSPI/KOSDAQ 시장 지수 데이터 조회
+ */
+export async function getMarketIndices(): Promise<MarketIndicesResponse> {
+  const response = await apiClient.get<MarketIndicesResponse>('/api/market-indicators/indices');
 
-export interface MarketStatus {
-  is_open: boolean;
-  session: 'pre_market' | 'regular' | 'after_hours' | 'closed' | 'weekend';
-  next_open: string;
-  last_updated: string;
-}
+  // The backend returns the data directly, not wrapped in a 'data' field
+  // So the response itself is the MarketIndicesResponse
+  if (!response) {
+    throw new Error('No market indices data received');
+  }
 
-export interface MarketIndices {
-  kospi: {
-    current: number;
-    change: number;
-    change_rate: number;
-    volume: number;
-    status: 'open' | 'closed';
-  };
-  kosdaq: {
-    current: number;
-    change: number;
-    change_rate: number;
-    volume: number;
-    status: 'open' | 'closed';
-  };
+  return response as MarketIndicesResponse;
 }
 
 /**
- * 전체 시장 지표 조회
+ * 개별 지수 데이터 조회
  */
-export async function getMarketIndicators(): Promise<MarketIndicators> {
-  const response = await apiClient.get<MarketIndicators>('/api/market/indicators');
-  if (!response.data) {
-    throw new Error('No market data received');
+export async function getIndexData(indexCode: string): Promise<{
+  data: IndexData;
+  timestamp: string;
+  success: boolean;
+}> {
+  const response = await apiClient.get<{
+    data: IndexData;
+    timestamp: string;
+    success: boolean;
+  }>(`/api/market-indicators/indices/${indexCode}`);
+
+  if (!response) {
+    throw new Error(`No data received for index: ${indexCode}`);
   }
-  return response.data;
+  return response as any;
 }
 
 /**
- * 시장 상태 조회
+ * Market Indicators API 상태 확인
  */
-export async function getMarketStatus(): Promise<MarketStatus> {
-  const response = await apiClient.get<MarketStatus>('/api/market/status');
-  if (!response.data) {
-    throw new Error('No market status received');
-  }
-  return response.data;
-}
+export async function getMarketIndicatorsHealth(): Promise<{
+  status: string;
+  kis_api_connected: boolean;
+  trading_mode: string;
+  timestamp?: string;
+  error?: string;
+}> {
+  const response = await apiClient.get<{
+    status: string;
+    kis_api_connected: boolean;
+    trading_mode: string;
+    timestamp?: string;
+    error?: string;
+  }>('/api/market-indicators/health');
 
-/**
- * 주요 지수 조회 (코스피, 코스닥)
- */
-export async function getMarketIndices(): Promise<MarketIndices> {
-  const response = await apiClient.get<MarketIndices>('/api/market/indices');
-  if (!response.data) {
-    throw new Error('No market indices received');
+  if (!response) {
+    throw new Error('No health status received');
   }
-  return response.data;
+  return response as any;
 }

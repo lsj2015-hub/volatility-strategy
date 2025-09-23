@@ -10,7 +10,7 @@ export { PortfolioService } from './portfolio';
 export { SystemService } from './system';
 export { monitoringAPI, MonitoringAPIError } from './monitoring';
 export { tradingApi } from './trading';
-export { getMarketIndicators, getMarketStatus, getMarketIndices } from './market';
+export { getMarketIndices, getIndexData, getMarketIndicatorsHealth } from './market';
 
 // Create alias for StocksService
 export const stocksApi = StocksService;
@@ -25,8 +25,5 @@ export type {
   SystemStatus
 } from './system';
 
-export type {
-  MarketIndicators,
-  MarketStatus,
-  MarketIndices
-} from './market';
+// Market types are now exported from @/types
+export type { MarketIndicesResponse, IndexData } from '@/types';

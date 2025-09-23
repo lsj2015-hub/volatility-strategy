@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import * as React from "react"
 import { cn } from "@/lib/utils"
@@ -118,8 +118,8 @@ const Slider = React.forwardRef<HTMLDivElement, SliderProps>(
         <div
           ref={sliderRef}
           className={cn(
-            "relative h-2 w-full rounded-full cursor-pointer",
-            disabled ? "bg-muted cursor-not-allowed" : "bg-secondary"
+            "relative h-2 w-full rounded-full cursor-pointer border",
+            disabled ? "bg-muted cursor-not-allowed border-muted" : "bg-gray-200 border-gray-300"
           )}
           onClick={handleTrackClick}
         >
@@ -127,7 +127,7 @@ const Slider = React.forwardRef<HTMLDivElement, SliderProps>(
           <div
             className={cn(
               "absolute h-full rounded-full transition-colors",
-              disabled ? "bg-muted-foreground/50" : "bg-primary"
+              disabled ? "bg-muted-foreground/50" : "bg-blue-500 shadow-sm"
             )}
             style={{
               left: isRange ? `${minPercentage}%` : '0%',
@@ -139,11 +139,11 @@ const Slider = React.forwardRef<HTMLDivElement, SliderProps>(
           {isRange && (
             <div
               className={cn(
-                "absolute top-1/2 h-5 w-5 -mt-2.5 rounded-full shadow-md transition-all duration-150",
+                "absolute top-1/2 h-4 w-4 -mt-2 rounded-full shadow-md transition-all duration-150",
                 disabled
                   ? "bg-muted-foreground cursor-not-allowed"
-                  : "bg-background border-2 border-primary cursor-grab active:cursor-grabbing hover:scale-110",
-                isDragging === 'min' && !disabled && "scale-110 ring-2 ring-primary/30"
+                  : "bg-blue-500 border-2 border-white cursor-grab active:cursor-grabbing hover:scale-110",
+                isDragging === 'min' && !disabled && "scale-110 ring-2 ring-blue-500/30"
               )}
               style={{
                 left: `${minPercentage}%`,
@@ -157,11 +157,11 @@ const Slider = React.forwardRef<HTMLDivElement, SliderProps>(
           {/* Range Slider: Max thumb OR Single Value thumb */}
           <div
             className={cn(
-              "absolute top-1/2 h-5 w-5 -mt-2.5 rounded-full shadow-md transition-all duration-150",
+              "absolute top-1/2 h-4 w-4 -mt-2 rounded-full shadow-md transition-all duration-150",
               disabled
                 ? "bg-muted-foreground cursor-not-allowed"
-                : "bg-background border-2 border-primary cursor-grab active:cursor-grabbing hover:scale-110",
-              ((isRange && isDragging === 'max') || (!isRange && isDragging === 'single')) && !disabled && "scale-110 ring-2 ring-primary/30"
+                : "bg-blue-500 border-2 border-white cursor-grab active:cursor-grabbing hover:scale-110",
+              ((isRange && isDragging === 'max') || (!isRange && isDragging === 'single')) && !disabled && "scale-110 ring-2 ring-blue-500/30"
             )}
             style={{
               left: `${maxPercentage}%`,

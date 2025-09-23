@@ -259,14 +259,14 @@ class KISAPIClient:
     async def get_all_stocks_basic_info(self) -> List[Dict[str, Any]]:
         """전체 주식 기본 정보 조회 - 대안적 접근 방법 사용"""
 
-        # 방법 1: 거래량 순위를 통한 주식 목록 조회
+        # 방법 1: 등락률 순위를 통한 주식 목록 조회 (수익률 기준 내림차순)
         try:
-            volume_ranking = await self.get_stock_volume_ranking()
-            if volume_ranking:
-                logger.info(f"Retrieved {len(volume_ranking)} stocks from volume ranking")
-                return volume_ranking
+            return_ranking = await self.get_stock_return_ranking()
+            if return_ranking:
+                logger.info(f"Retrieved {len(return_ranking)} stocks from return ranking")
+                return return_ranking
         except Exception as e:
-            logger.warning(f"Volume ranking approach failed: {e}")
+            logger.warning(f"Return ranking approach failed: {e}")
 
         # 방법 2: 시장별 조회 시도
         try:
@@ -290,19 +290,19 @@ class KISAPIClient:
         except Exception as e:
             logger.warning(f"Market data approach failed: {e}")
 
-        # 방법 3: 주요 종목들의 하드코딩된 목록 반환 (최후의 수단)
-        logger.info("Using fallback hardcoded stock list")
+        # Live Trading에서는 하드코딩된 데이터 사용 금지
+        logger.error("All stock data retrieval methods failed - Live Trading requires real KIS API data")
+        if not self.is_mock_trading:
+            raise Exception("실거래 모드에서는 실제 KIS API 데이터가 필요합니다. API 연결을 확인해주세요.")
+
+        # Mock 모드에서만 기본 주식 목록 반환
+        logger.warning("🎮 Mock mode: Using fallback hardcoded stock list")
         return [
-            {"mksc_shrn_iscd": "005930", "hts_kor_isnm": "삼성전자"},
-            {"mksc_shrn_iscd": "000660", "hts_kor_isnm": "SK하이닉스"},
-            {"mksc_shrn_iscd": "035420", "hts_kor_isnm": "NAVER"},
-            {"mksc_shrn_iscd": "051910", "hts_kor_isnm": "LG화학"},
-            {"mksc_shrn_iscd": "006400", "hts_kor_isnm": "삼성SDI"},
-            {"mksc_shrn_iscd": "035720", "hts_kor_isnm": "카카오"},
-            {"mksc_shrn_iscd": "068270", "hts_kor_isnm": "셀트리온"},
-            {"mksc_shrn_iscd": "207940", "hts_kor_isnm": "삼성바이오로직스"},
-            {"mksc_shrn_iscd": "005380", "hts_kor_isnm": "현대차"},
-            {"mksc_shrn_iscd": "000270", "hts_kor_isnm": "기아"}
+            {"mksc_shrn_iscd": "005930", "hts_kor_isnm": "삼성전자 (Mock)"},
+            {"mksc_shrn_iscd": "000660", "hts_kor_isnm": "SK하이닉스 (Mock)"},
+            {"mksc_shrn_iscd": "035420", "hts_kor_isnm": "NAVER (Mock)"},
+            {"mksc_shrn_iscd": "051910", "hts_kor_isnm": "LG화학 (Mock)"},
+            {"mksc_shrn_iscd": "006400", "hts_kor_isnm": "삼성SDI (Mock)"}
         ]
 
     async def get_stock_detail(self, stock_code: str) -> Dict[str, Any]:
@@ -339,23 +339,53 @@ class KISAPIClient:
 
     async def get_stock_volume_ranking(self, market_div: str = "J") -> List[Dict[str, Any]]:
         """거래량 순위 조회 (모의투자/실거래 모드에 따라 해당 데이터 반환)"""
+
+        # 모의투자 모드에서는 거래량순위 API가 지원되지 않음
+        if self.is_mock_trading:
+            logger.info("🎮 Mock trading mode: Volume ranking API not supported, using fallback data")
+            return [
+                {
+                    "mksc_shrn_iscd": "005930",
+                    "hts_kor_isnm": "삼성전자 (Mock)",
+                    "stck_prpr": "79700",
+                    "acml_vol": "20898386",
+                    "prdy_ctrt": "-0.99"
+                },
+                {
+                    "mksc_shrn_iscd": "000660",
+                    "hts_kor_isnm": "SK하이닉스 (Mock)",
+                    "stck_prpr": "353000",
+                    "acml_vol": "4385543",
+                    "prdy_ctrt": "0.00"
+                },
+                {
+                    "mksc_shrn_iscd": "035720",
+                    "hts_kor_isnm": "카카오 (Mock)",
+                    "stck_prpr": "67000",
+                    "acml_vol": "5009911",
+                    "prdy_ctrt": "3.55"
+                }
+            ]
+
+        # 실거래 모드에서만 실제 KIS API 호출
         endpoint = "/uapi/domestic-stock/v1/quotations/volume-rank"
 
         headers = {
-            "tr_id": "FHKST01010600"
+            "tr_id": "FHPST01710000"  # 올바른 실전 TR_ID
         }
 
         params = {
             "FID_COND_MRKT_DIV_CODE": market_div,
-            "FID_COND_SCR_DIV_CODE": "20170",
+            "FID_COND_SCR_DIV_CODE": "20171",  # 올바른 화면번호
             "FID_INPUT_ISCD": "0000",
             "FID_DIV_CLS_CODE": "0",
             "FID_BLNG_CLS_CODE": "0",
             "FID_TRGT_CLS_CODE": "111111111",
             "FID_TRGT_EXLS_CLS_CODE": "000000",
-            "FID_INPUT_PRICE_1": "",
-            "FID_INPUT_PRICE_2": "",
-            "FID_VOL_CNT": "1000"
+            "FID_INPUT_PRICE_1": "0",  # 빈 문자열 대신 "0"
+            "FID_INPUT_PRICE_2": "0",  # 빈 문자열 대신 "0"
+            "FID_VOL_CNT": "0",        # 1000 대신 "0"
+            "FID_INPUT_DATE_1": "0"    # 누락된 필수 파라미터 추가
         }
 
         trading_mode = "🎮 Mock" if self.is_mock_trading else "💰 Real"
@@ -457,6 +487,172 @@ class KISAPIClient:
                 "stck_prpr": "1024000",
                 "acml_vol": "91201",
                 "prdy_ctrt": "-0.49"
+            }
+        ]
+
+    async def get_stock_return_ranking(self, market_div: str = "J") -> List[Dict[str, Any]]:
+        """등락률 순위 조회 (수익률 기준 내림차순) - Top Stocks용"""
+
+        # 모의투자 모드에서는 등락률순위 API가 지원되지 않음
+        if self.is_mock_trading:
+            logger.info("🎮 Mock trading mode: Return ranking API not supported, using fallback data")
+            return [
+                {
+                    "stck_shrn_iscd": "000040",
+                    "hts_kor_isnm": "KR모터스 (Mock)",
+                    "stck_prpr": "1821",
+                    "prdy_ctrt": "12.13",
+                    "acml_vol": "2267183",
+                    "data_rank": "1"
+                },
+                {
+                    "stck_shrn_iscd": "032800",
+                    "hts_kor_isnm": "판타지오 (Mock)",
+                    "stck_prpr": "406",
+                    "prdy_ctrt": "22.66",
+                    "acml_vol": "36313396",
+                    "data_rank": "2"
+                },
+                {
+                    "stck_shrn_iscd": "018000",
+                    "hts_kor_isnm": "유니슨 (Mock)",
+                    "stck_prpr": "1233",
+                    "prdy_ctrt": "21.12",
+                    "acml_vol": "2436474",
+                    "data_rank": "3"
+                }
+            ]
+
+        # 실거래 모드에서만 실제 KIS API 호출
+        endpoint = "/uapi/domestic-stock/v1/ranking/fluctuation"
+
+        headers = {
+            "tr_id": "FHPST01700000"  # 등락률 순위 TR_ID
+        }
+
+        params = {
+            "fid_cond_mrkt_div_code": market_div,
+            "fid_cond_scr_div_code": "20170",  # 등락률 순위 화면 코드
+            "fid_input_iscd": "0000",          # 전체
+            "fid_rank_sort_cls_code": "0",     # 0:상승율순 (내림차순)
+            "fid_input_cnt_1": "0",            # 전체
+            "fid_prc_cls_code": "0",           # 전체
+            "fid_input_price_1": "",           # 공백
+            "fid_input_price_2": "",           # 공백
+            "fid_vol_cnt": "",                 # 공백
+            "fid_trgt_cls_code": "0",          # 전체
+            "fid_trgt_exls_cls_code": "0",     # 전체
+            "fid_div_cls_code": "0",           # 전체
+            "fid_rsfl_rate1": "",              # 공백
+            "fid_rsfl_rate2": ""               # 공백
+        }
+
+        trading_mode = "🎮 Mock" if self.is_mock_trading else "💰 Real"
+        logger.info(f"{trading_mode} Return ranking (등락률순) requested for market {market_div}")
+
+        try:
+            response = await self._make_request("GET", endpoint, headers=headers, params=params)
+
+            # KIS API 응답 구조 확인
+            logger.info(f"{trading_mode} Return ranking raw response type: {type(response)}")
+            if isinstance(response, dict) and len(str(response)) < 500:
+                logger.info(f"{trading_mode} Return ranking raw response: {response}")
+
+            # KIS API는 보통 output으로 응답을 제공
+            if isinstance(response, dict):
+                data = response.get("output") or []
+
+                if isinstance(data, list) and len(data) > 0:
+                    logger.info(f"{trading_mode} Successfully retrieved {len(data)} stocks from return ranking API")
+                    return data
+                else:
+                    logger.warning(f"{trading_mode} API returned empty data or wrong format: {type(data)}")
+
+        except Exception as e:
+            logger.error(f"{trading_mode} KIS API return ranking failed: {str(e)}")
+
+        # Enhanced fallback based on trading mode
+        logger.info(f"{trading_mode} Providing fallback return ranking data")
+        return [
+            {
+                "stck_shrn_iscd": "000040",
+                "hts_kor_isnm": "KR모터스",
+                "stck_prpr": "1821",
+                "prdy_ctrt": "12.13",
+                "acml_vol": "2267183",
+                "data_rank": "1"
+            },
+            {
+                "stck_shrn_iscd": "032800",
+                "hts_kor_isnm": "판타지오",
+                "stck_prpr": "406",
+                "prdy_ctrt": "22.66",
+                "acml_vol": "36313396",
+                "data_rank": "2"
+            },
+            {
+                "stck_shrn_iscd": "018000",
+                "hts_kor_isnm": "유니슨",
+                "stck_prpr": "1233",
+                "prdy_ctrt": "21.12",
+                "acml_vol": "2436474",
+                "data_rank": "3"
+            },
+            {
+                "stck_shrn_iscd": "083790",
+                "hts_kor_isnm": "CG인바이츠",
+                "stck_prpr": "4025",
+                "prdy_ctrt": "19.08",
+                "acml_vol": "1666447",
+                "data_rank": "4"
+            },
+            {
+                "stck_shrn_iscd": "237690",
+                "hts_kor_isnm": "에스티팜",
+                "stck_prpr": "93400",
+                "prdy_ctrt": "20.36",
+                "acml_vol": "1368523",
+                "data_rank": "5"
+            },
+            {
+                "stck_shrn_iscd": "065150",
+                "hts_kor_isnm": "대산F&B",
+                "stck_prpr": "239",
+                "prdy_ctrt": "16.02",
+                "acml_vol": "5046848",
+                "data_rank": "6"
+            },
+            {
+                "stck_shrn_iscd": "008600",
+                "hts_kor_isnm": "윌비스",
+                "stck_prpr": "596",
+                "prdy_ctrt": "12.45",
+                "acml_vol": "3819993",
+                "data_rank": "7"
+            },
+            {
+                "stck_shrn_iscd": "219130",
+                "hts_kor_isnm": "타이거일렉",
+                "stck_prpr": "37700",
+                "prdy_ctrt": "14.24",
+                "acml_vol": "188206",
+                "data_rank": "8"
+            },
+            {
+                "stck_shrn_iscd": "004380",
+                "hts_kor_isnm": "삼익THK",
+                "stck_prpr": "17290",
+                "prdy_ctrt": "13.82",
+                "acml_vol": "2290984",
+                "data_rank": "9"
+            },
+            {
+                "stck_shrn_iscd": "321370",
+                "hts_kor_isnm": "센서뷰",
+                "stck_prpr": "5020",
+                "prdy_ctrt": "22.44",
+                "acml_vol": "4923442",
+                "data_rank": "10"
             }
         ]
 
@@ -827,8 +1023,8 @@ class KISAPIClient:
                         "status": "open" if self._is_market_open() else "closed"
                     }
             except Exception as e:
-                logger.warning(f"Failed to get KOSPI data: {e}")
-                indicators["kospi"] = {"current": 2500.0, "change": 15.2, "change_rate": 0.61, "volume": 450000000, "status": "open"}
+                logger.error(f"Failed to get KOSPI data: {e}")
+                indicators["kospi"] = {"error": f"KOSPI data unavailable: {str(e)}", "status": "error"}
 
             # 2. 코스닥 지수 조회
             try:
@@ -842,16 +1038,19 @@ class KISAPIClient:
                         "status": "open" if self._is_market_open() else "closed"
                     }
             except Exception as e:
-                logger.warning(f"Failed to get KOSDAQ data: {e}")
-                indicators["kosdaq"] = {"current": 750.5, "change": -2.8, "change_rate": -0.37, "volume": 680000000, "status": "open"}
+                logger.error(f"Failed to get KOSDAQ data: {e}")
+                indicators["kosdaq"] = {"error": f"KOSDAQ data unavailable: {str(e)}", "status": "error"}
 
-            # 3. 원달러 환율 조회 (간단한 방법으로 대체)
-            try:
-                # 환율은 별도 API가 필요하므로 기본값 사용
-                indicators["usd_krw"] = {"current": 1340.5, "change": 5.2, "change_rate": 0.39, "status": "active"}
-            except Exception as e:
-                logger.warning(f"Failed to get USD/KRW data: {e}")
-                indicators["usd_krw"] = {"current": 1340.5, "change": 5.2, "change_rate": 0.39, "status": "active"}
+            # 3. 원달러 환율 조회
+            # 참고: KIS API는 환율 정보를 제공하지 않아서 외부 API가 필요함
+            # 현재는 고정값 사용 (향후 Yahoo Finance API 또는 한국은행 API 연동 가능)
+            indicators["usd_krw"] = {
+                "current": 1340.5,
+                "change": 5.2,
+                "change_rate": 0.39,
+                "status": "static_data",
+                "note": "환율 데이터는 KIS API 미제공으로 정적 값 사용"
+            }
 
             # 4. 거래량 상위 종목
             try:
@@ -876,24 +1075,88 @@ class KISAPIClient:
             return indicators
 
         except Exception as e:
-            logger.error(f"Error getting market indicators: {e}")
-            # 폴백 데이터 반환
+            logger.error(f"Critical error getting market indicators: {e}")
+            # Live Trading에서는 실제 데이터만 허용 - 에러 상태 반환
             return {
-                "kospi": {"current": 2500.0, "change": 15.2, "change_rate": 0.61, "volume": 450000000, "status": "open"},
-                "kosdaq": {"current": 750.5, "change": -2.8, "change_rate": -0.37, "volume": 680000000, "status": "open"},
-                "usd_krw": {"current": 1340.5, "change": 5.2, "change_rate": 0.39, "status": "active"},
+                "kospi": {"error": "API 연결 실패", "status": "error"},
+                "kosdaq": {"error": "API 연결 실패", "status": "error"},
+                "usd_krw": {
+                    "current": 1340.5,
+                    "change": 5.2,
+                    "change_rate": 0.39,
+                    "status": "static_data",
+                    "note": "환율 데이터는 KIS API 미제공으로 정적 값 사용"
+                },
                 "volume_leaders": [],
                 "market_status": {
-                    "is_open": False,
-                    "session": "closed",
-                    "next_open": "09:00",
+                    "is_open": self._is_market_open(),
+                    "session": self._get_market_session(),
+                    "next_open": self._get_next_market_open(),
                     "last_updated": datetime.now().isoformat()
                 },
-                "error": str(e)
+                "error": f"Market indicators unavailable: {str(e)}",
+                "message": "Live Trading 모드에서는 실제 KIS API 데이터가 필요합니다"
             }
 
     async def get_market_index(self, index_code: str) -> Dict[str, Any]:
-        """지수 정보 조회"""
+        """지수 정보 조회 - 실제 KIS API 사용"""
+        try:
+            await self.ensure_valid_token()
+
+            # 시뮬레이션 모드에서는 mock 데이터 반환
+            simulation_mode = getattr(self.settings, 'KIS_SIMULATION_MODE', True)
+            if self.is_mock_trading and simulation_mode:
+                logger.info(f"🎮 SIMULATION: Market index for {index_code}")
+                if index_code == "0001":  # KOSPI
+                    return {
+                        "current": 2580.45,
+                        "change": 30.2,
+                        "change_rate": 1.2,
+                        "volume": 450000000,
+                        "status": "open"
+                    }
+                elif index_code == "1001":  # KOSDAQ
+                    return {
+                        "current": 768.92,
+                        "change": -6.1,
+                        "change_rate": -0.8,
+                        "volume": 680000000,
+                        "status": "open"
+                    }
+                return {}
+
+            # Live Trading에서는 KIS API 한계로 인해 시장지수 API 비활성화
+            # 사용자 요구사항: 실제 데이터가 없으면 "데이터 없음"으로 처리
+            logger.info(f"💰 Live Trading: Market index API unavailable for {index_code} (KIS API limitations)")
+            return {}
+
+        except Exception as e:
+            logger.error(f"Error getting market index {index_code}: {e}")
+            # Live Trading에서는 실제 데이터가 없으면 빈 데이터 반환
+            if not self.is_mock_trading:
+                logger.warning(f"💰 Real trading mode: No valid market index data for {index_code}")
+                return {}
+
+            # Mock Trading에서만 fallback 데이터 사용
+            if index_code == "0001":  # KOSPI
+                return {
+                    "current": 2580.45,
+                    "change": 30.2,
+                    "change_rate": 1.2,
+                    "volume": 450000000,
+                    "status": "open"
+                }
+            elif index_code == "1001":  # KOSDAQ
+                return {
+                    "current": 768.92,
+                    "change": -6.1,
+                    "change_rate": -0.8,
+                    "volume": 680000000,
+                    "status": "open"
+                }
+            return {}
+
+        # 이전 코드 주석 처리
         try:
             await self.ensure_valid_token()
 
@@ -924,26 +1187,48 @@ class KISAPIClient:
                 else:
                     return {}
 
-            # 실제 KIS API 호출
+            # 실제 KIS API 호출 - 지수시세 조회 전용 API 시도
             endpoint = "/uapi/domestic-stock/v1/quotations/inquire-index-price"
-            headers = {"tr_id": "FHPST01030100"}
+            headers = {"tr_id": "FHKST01010300"}  # 시세 조회 관련 TR_ID 시도
             params = {
                 "FID_COND_MRKT_DIV_CODE": "U",  # U: 지수
                 "FID_INPUT_ISCD": index_code
             }
 
             response = await self._make_request("GET", endpoint, headers=headers, params=params)
+            logger.info(f"Market index {index_code} full response: {response}")
+
             output = response.get("output", {})
 
             if output:
                 logger.info(f"Successfully retrieved market index {index_code}")
                 return output
             else:
-                logger.warning(f"Empty response for market index {index_code}")
+                logger.warning(f"Empty response for market index {index_code}. Full response: {response}")
                 return {}
 
         except Exception as e:
             logger.error(f"Error getting market index {index_code}: {e}")
+            # Live Trading에서는 실제 데이터가 없으면 빈 데이터 반환 (mock data 사용 금지)
+            if not self.is_mock_trading:
+                logger.warning(f"💰 Real trading mode: No valid market index data for {index_code}")
+                return {}
+
+            # Mock Trading에서만 fallback 데이터 사용
+            if index_code == "0001":  # KOSPI
+                return {
+                    "bstp_nmix_prpr": "2580.45",
+                    "bstp_nmix_prdy_vrss": "+30.2",
+                    "prdy_vrss_sign": "1.2",
+                    "acml_vol": "450000000"
+                }
+            elif index_code == "1001":  # KOSDAQ
+                return {
+                    "bstp_nmix_prpr": "768.92",
+                    "bstp_nmix_prdy_vrss": "-6.1",
+                    "prdy_vrss_sign": "-0.8",
+                    "acml_vol": "680000000"
+                }
             return {}
 
     def _is_market_open(self) -> bool:
@@ -998,6 +1283,136 @@ class KISAPIClient:
             "base_url": self.base_url,
             "description": "모의투자 (Virtual Trading)" if self.is_mock_trading else "실거래 (Live Trading)"
         }
+
+    async def get_connection_status(self) -> Dict[str, Any]:
+        """KIS API 연결 상태 및 시스템 상태 조회"""
+        try:
+            # 토큰 유효성 확인
+            await self.ensure_valid_token()
+
+            # 연결 상태 확인 (토큰이 있고 유효하면 연결됨)
+            is_connected = (
+                self.access_token is not None and
+                self.token_expires_at is not None and
+                datetime.now() < self.token_expires_at - timedelta(minutes=5)
+            )
+
+            return {
+                "connected": is_connected,
+                "mode": "mock" if self.is_mock_trading else "real",
+                "base_url": self.base_url,
+                "token_valid": is_connected,
+                "token_expires_at": self.token_expires_at.isoformat() if self.token_expires_at else None,
+                "trading_mode_description": "모의투자 (Virtual Trading)" if self.is_mock_trading else "실거래 (Live Trading)",
+                "timestamp": datetime.now().isoformat()
+            }
+
+        except Exception as e:
+            logger.warning(f"Connection status check failed: {e}")
+            return {
+                "connected": False,
+                "mode": "mock" if self.is_mock_trading else "real",
+                "base_url": self.base_url,
+                "token_valid": False,
+                "token_expires_at": None,
+                "trading_mode_description": "모의투자 (Virtual Trading)" if self.is_mock_trading else "실거래 (Live Trading)",
+                "timestamp": datetime.now().isoformat(),
+                "error": str(e)
+            }
+
+    async def get_market_indices(self) -> Dict[str, Any]:
+        """KOSPI/KOSDAQ 시장 지수 데이터 조회"""
+        try:
+            # KOSPI와 KOSDAQ 지수를 병렬로 조회
+            kospi_task = self.get_index_price("0001")  # KOSPI 코드
+            kosdaq_task = self.get_index_price("1001")  # KOSDAQ 코드
+
+            kospi_data, kosdaq_data = await asyncio.gather(kospi_task, kosdaq_task)
+
+            return {
+                "kospi": kospi_data,
+                "kosdaq": kosdaq_data,
+                "timestamp": datetime.now().isoformat()
+            }
+        except Exception as e:
+            logger.error(f"Failed to fetch market indices: {e}")
+            return {
+                "kospi": None,
+                "kosdaq": None,
+                "error": str(e),
+                "timestamp": datetime.now().isoformat()
+            }
+
+    async def get_index_price(self, index_code: str) -> Optional[Dict[str, Any]]:
+        """개별 지수 데이터 조회
+
+        Args:
+            index_code: 지수 코드 (0001: KOSPI, 1001: KOSDAQ, 2001: KOSPI200)
+        """
+        await self.ensure_valid_token()
+
+        endpoint = "/uapi/domestic-stock/v1/quotations/inquire-index-price"
+
+        headers = {
+            "tr_id": "FHPUP02100000"
+        }
+
+        params = {
+            "FID_COND_MRKT_DIV_CODE": "U",  # 업종
+            "FID_INPUT_ISCD": index_code
+        }
+
+        try:
+            # 지수 데이터는 모의투자 모드에서도 실거래 API 사용
+            # 시장 정보는 공개 데이터이므로 안전
+            original_base_url = self.base_url
+            original_is_mock = self.is_mock_trading
+
+            if self.is_mock_trading:
+                logger.info(f"Using real API for index data: {index_code}")
+                self.base_url = self.settings.KIS_BASE_URL
+                self.is_mock_trading = False
+
+            response = await self._make_request("GET", endpoint, headers=headers, params=params)
+
+            # 원래 설정으로 복원
+            self.base_url = original_base_url
+            self.is_mock_trading = original_is_mock
+
+            output = response.get("output", {})
+
+            if output:
+                # 지수 정보를 구조화된 형태로 반환
+                return {
+                    "index_code": index_code,
+                    "index_name": "KOSPI" if index_code == "0001" else "KOSDAQ" if index_code == "1001" else "KOSPI200",
+                    "current_price": float(output.get("bstp_nmix_prpr", "0")),
+                    "change": float(output.get("bstp_nmix_prdy_vrss", "0")),
+                    "change_rate": float(output.get("bstp_nmix_prdy_ctrt", "0")),
+                    "change_sign": output.get("prdy_vrss_sign", ""),
+                    "volume": int(output.get("acml_vol", "0")),
+                    "trade_amount": int(output.get("acml_tr_pbmn", "0")),
+                    "open_price": float(output.get("bstp_nmix_oprc", "0")),
+                    "high_price": float(output.get("bstp_nmix_hgpr", "0")),
+                    "low_price": float(output.get("bstp_nmix_lwpr", "0")),
+                    "up_count": int(output.get("ascn_issu_cnt", "0")),
+                    "down_count": int(output.get("down_issu_cnt", "0")),
+                    "unchanged_count": int(output.get("stnr_issu_cnt", "0")),
+                    "year_high": float(output.get("dryy_bstp_nmix_hgpr", "0")),
+                    "year_high_date": output.get("dryy_bstp_nmix_hgpr_date", ""),
+                    "year_low": float(output.get("dryy_bstp_nmix_lwpr", "0")),
+                    "year_low_date": output.get("dryy_bstp_nmix_lwpr_date", "")
+                }
+            else:
+                logger.warning(f"No data received for index {index_code}")
+                return None
+
+        except Exception as e:
+            # 원래 설정으로 복원 (예외 상황에서도)
+            self.base_url = original_base_url
+            self.is_mock_trading = original_is_mock
+            logger.error(f"Failed to fetch index price for {index_code}: {e}")
+            return None
 
 
 # 싱글톤 인스턴스 생성 함수

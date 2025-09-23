@@ -46,6 +46,11 @@ class KisApiCredentials(BaseModel):
     app_secret: str
     environment: str = Field(pattern="^(sandbox|production)$")
 
+class SaveApiKeysRequest(BaseModel):
+    """API 키 저장 요청"""
+    app_key: str = Field(..., min_length=1, description="KIS API App Key")
+    app_secret: str = Field(..., min_length=1, description="KIS API App Secret")
+
 # Health check
 class HealthCheck(BaseModel):
     """Health check response"""

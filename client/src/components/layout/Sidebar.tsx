@@ -6,7 +6,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,10 +20,10 @@ import {
   PieChart,
   Settings,
   TrendingUp,
-  Wallet
+  Wallet,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { getMarketIndicators, type MarketIndicators } from '@/lib/api';
+import { useMarketIndicators } from '@/hooks/useMarketIndicators';
 
 interface SidebarProps {
   className?: string;
@@ -31,37 +31,7 @@ interface SidebarProps {
 
 export function Sidebar({ className }: SidebarProps) {
   const pathname = usePathname();
-  const [marketData, setMarketData] = useState<MarketIndicators | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // 시장 지표 데이터 가져오기
-  useEffect(() => {
-    const fetchMarketData = async () => {
-      try {
-        setIsLoading(true);
-        const data = await getMarketIndicators();
-        setMarketData(data);
-      } catch (err) {
-        console.error('Failed to fetch market indicators:', err);
-        // 에러 시 폴백 데이터 사용
-        setMarketData({
-          kospi: { current: 2580.45, change: 30.2, change_rate: 1.2, volume: 450000000, status: 'open' },
-          kosdaq: { current: 768.92, change: -6.1, change_rate: -0.8, volume: 680000000, status: 'open' },
-          usd_krw: { current: 1340.5, change: 5.2, change_rate: 0.39, status: 'active' },
-          volume_leaders: [],
-          market_status: { is_open: false, session: 'closed', next_open: '09:00', last_updated: new Date().toISOString() }
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchMarketData();
-
-    // 30초마다 데이터 업데이트
-    const interval = setInterval(fetchMarketData, 30000);
-    return () => clearInterval(interval);
-  }, []);
+  const { data: marketData, loading: isLoading } = useMarketIndicators(30000);
 
   const navigation = [
     { name: 'Dashboard', href: '/', icon: Home },
@@ -93,9 +63,6 @@ export function Sidebar({ className }: SidebarProps) {
       <div className="space-y-4 py-4">
         {/* 네비게이션 메뉴 */}
         <div className="px-3 py-2">
-          <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight">
-            Navigation
-          </h2>
           <div className="space-y-1">
             {navigation.map((item) => {
               const Icon = item.icon;
@@ -104,13 +71,20 @@ export function Sidebar({ className }: SidebarProps) {
               return (
                 <Link key={item.href} href={item.href}>
                   <Button
-                    variant={isActive ? "default" : "ghost"}
+                    variant={isActive ? 'default' : 'ghost'}
                     className={cn(
-                      "w-full justify-start",
-                      isActive && "bg-primary text-primary-foreground"
+                      'w-full justify-start font-medium transition-all duration-200',
+                      isActive
+                        ? 'bg-blue-600 hover:bg-blue-700 text-white border-l-4 border-blue-800 shadow-md'
+                        : 'hover:bg-gray-100 text-gray-700 hover:text-gray-900'
                     )}
                   >
-                    <Icon className="mr-2 h-4 w-4" />
+                    <Icon
+                      className={cn(
+                        'mr-2 h-4 w-4',
+                        isActive ? 'text-white' : 'text-gray-600'
+                      )}
+                    />
                     {item.name}
                   </Button>
                 </Link>
@@ -164,7 +138,9 @@ export function Sidebar({ className }: SidebarProps) {
             </CardHeader>
             <CardContent className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Total Value</span>
+                <span className="text-sm text-muted-foreground">
+                  Total Value
+                </span>
                 <span className="text-sm font-medium">
                   ₩{portfolioSummary.totalValue.toLocaleString()}
                 </span>
@@ -172,15 +148,23 @@ export function Sidebar({ className }: SidebarProps) {
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">P&L</span>
                 <div className="text-right">
-                  <div className={`text-sm font-medium ${
-                    portfolioSummary.unrealizedPnL >= 0 ? 'text-green-600' : 'text-red-600'
-                  }`}>
-                    {portfolioSummary.unrealizedPnL >= 0 ? '+' : ''}
-                    ₩{portfolioSummary.unrealizedPnL.toLocaleString()}
+                  <div
+                    className={`text-sm font-medium ${
+                      portfolioSummary.unrealizedPnL >= 0
+                        ? 'text-green-600'
+                        : 'text-red-600'
+                    }`}
+                  >
+                    {portfolioSummary.unrealizedPnL >= 0 ? '+' : ''}₩
+                    {portfolioSummary.unrealizedPnL.toLocaleString()}
                   </div>
-                  <div className={`text-xs ${
-                    portfolioSummary.unrealizedPnLPercent >= 0 ? 'text-green-600' : 'text-red-600'
-                  }`}>
+                  <div
+                    className={`text-xs ${
+                      portfolioSummary.unrealizedPnLPercent >= 0
+                        ? 'text-green-600'
+                        : 'text-red-600'
+                    }`}
+                  >
                     {portfolioSummary.unrealizedPnLPercent >= 0 ? '+' : ''}
                     {portfolioSummary.unrealizedPnLPercent.toFixed(2)}%
                   </div>
@@ -207,48 +191,84 @@ export function Sidebar({ className }: SidebarProps) {
             <CardContent className="space-y-2">
               {isLoading ? (
                 <div className="flex items-center justify-center py-4">
-                  <div className="text-xs text-muted-foreground">Loading...</div>
+                  <div className="text-xs text-muted-foreground">
+                    Loading...
+                  </div>
                 </div>
               ) : marketData ? (
                 <>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">KOSPI</span>
                     <div className="text-right">
-                      <div className="text-sm font-medium">
-                        {marketData.kospi.current.toLocaleString('ko-KR', {
-                          minimumFractionDigits: 0,
-                          maximumFractionDigits: 2
-                        })}
-                      </div>
-                      <div className={`text-xs ${
-                        marketData.kospi.change_rate >= 0 ? 'text-green-600' : 'text-red-600'
-                      }`}>
-                        {marketData.kospi.change_rate >= 0 ? '+' : ''}
-                        {marketData.kospi.change_rate.toFixed(1)}%
-                      </div>
+                      {marketData.kospi?.current_price ? (
+                        <>
+                          <div className="text-sm font-medium">
+                            {marketData.kospi.current_price.toLocaleString(
+                              'ko-KR',
+                              {
+                                minimumFractionDigits: 0,
+                                maximumFractionDigits: 2,
+                              }
+                            )}
+                          </div>
+                          <div
+                            className={`text-xs ${
+                              marketData.kospi.change_rate >= 0
+                                ? 'text-red-600'
+                                : 'text-blue-600'
+                            }`}
+                          >
+                            {marketData.kospi.change_rate >= 0 ? '+' : ''}
+                            {marketData.kospi.change_rate.toFixed(1)}%
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-xs text-muted-foreground">
+                          데이터 없음
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">KOSDAQ</span>
+                    <span className="text-sm text-muted-foreground">
+                      KOSDAQ
+                    </span>
                     <div className="text-right">
-                      <div className="text-sm font-medium">
-                        {marketData.kosdaq.current.toLocaleString('ko-KR', {
-                          minimumFractionDigits: 0,
-                          maximumFractionDigits: 2
-                        })}
-                      </div>
-                      <div className={`text-xs ${
-                        marketData.kosdaq.change_rate >= 0 ? 'text-green-600' : 'text-red-600'
-                      }`}>
-                        {marketData.kosdaq.change_rate >= 0 ? '+' : ''}
-                        {marketData.kosdaq.change_rate.toFixed(1)}%
-                      </div>
+                      {marketData.kosdaq?.current_price ? (
+                        <>
+                          <div className="text-sm font-medium">
+                            {marketData.kosdaq.current_price.toLocaleString(
+                              'ko-KR',
+                              {
+                                minimumFractionDigits: 0,
+                                maximumFractionDigits: 2,
+                              }
+                            )}
+                          </div>
+                          <div
+                            className={`text-xs ${
+                              marketData.kosdaq.change_rate >= 0
+                                ? 'text-red-600'
+                                : 'text-blue-600'
+                            }`}
+                          >
+                            {marketData.kosdaq.change_rate >= 0 ? '+' : ''}
+                            {marketData.kosdaq.change_rate.toFixed(1)}%
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-xs text-muted-foreground">
+                          데이터 없음
+                        </div>
+                      )}
                     </div>
                   </div>
                 </>
               ) : (
                 <div className="flex items-center justify-center py-4">
-                  <div className="text-xs text-muted-foreground">No data available</div>
+                  <div className="text-xs text-muted-foreground">
+                    No data available
+                  </div>
                 </div>
               )}
             </CardContent>

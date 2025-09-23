@@ -22,7 +22,7 @@ class Settings(BaseSettings):
 
     # 모의투자 설정
     KIS_MOCK_TRADING: bool = Field(default=True, description="모의투자 모드 활성화")
-    KIS_SIMULATION_MODE: bool = Field(default=True, description="완전 시뮬레이션 모드 (API 연결 없음)")
+    KIS_SIMULATION_MODE: bool = Field(default=False, description="완전 시뮬레이션 모드 (API 연결 없음) - Live Trading에서는 False 필수")
     KIS_MOCK_BASE_URL: str = Field(
         default="https://openapivts.koreainvestment.com:29443",
         description="KIS API Mock Trading Base URL"

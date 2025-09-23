@@ -5,7 +5,7 @@
 import { ApiResponse } from '@/types';
 
 // API 기본 설정
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export class ApiError extends Error {
   constructor(
@@ -89,17 +89,22 @@ export class ApiClient {
    * GET 요청
    */
   async get<T>(endpoint: string, params?: Record<string, any>): Promise<ApiResponse<T>> {
-    const url = new URL(endpoint, this.baseUrl);
+    let finalEndpoint = endpoint;
 
     if (params) {
+      const searchParams = new URLSearchParams();
       Object.entries(params).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
-          url.searchParams.append(key, String(value));
+          searchParams.append(key, String(value));
         }
       });
+
+      if (searchParams.toString()) {
+        finalEndpoint += (endpoint.includes('?') ? '&' : '?') + searchParams.toString();
+      }
     }
 
-    return this.request(url.pathname + url.search);
+    return this.request(finalEndpoint);
   }
 
   /**

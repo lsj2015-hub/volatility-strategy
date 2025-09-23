@@ -595,7 +595,11 @@ export default function PortfolioPage() {
                   variant={allocationMethod === 'equal' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => handleAllocationMethodChange('equal')}
-                  className="w-full justify-start"
+                  className={`w-full justify-start font-semibold border-2 shadow-sm hover:shadow-md transition-all duration-200 ${
+                    allocationMethod === 'equal'
+                      ? 'bg-purple-600 hover:bg-purple-700 border-purple-700 text-white'
+                      : 'bg-white hover:bg-purple-50 border-purple-300 text-purple-700 hover:border-purple-500'
+                  }`}
                 >
                   Equal Distribution
                 </Button>
@@ -603,7 +607,11 @@ export default function PortfolioPage() {
                   variant={allocationMethod === 'risk-weighted' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => handleAllocationMethodChange('risk-weighted')}
-                  className="w-full justify-start"
+                  className={`w-full justify-start font-semibold border-2 shadow-sm hover:shadow-md transition-all duration-200 ${
+                    allocationMethod === 'risk-weighted'
+                      ? 'bg-orange-600 hover:bg-orange-700 border-orange-700 text-white'
+                      : 'bg-white hover:bg-orange-50 border-orange-300 text-orange-700 hover:border-orange-500'
+                  }`}
                 >
                   Score-Weighted
                 </Button>
@@ -611,7 +619,11 @@ export default function PortfolioPage() {
                   variant={allocationMethod === 'custom' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => handleAllocationMethodChange('custom')}
-                  className="w-full justify-start"
+                  className={`w-full justify-start font-semibold border-2 shadow-sm hover:shadow-md transition-all duration-200 ${
+                    allocationMethod === 'custom'
+                      ? 'bg-indigo-600 hover:bg-indigo-700 border-indigo-700 text-white'
+                      : 'bg-white hover:bg-indigo-50 border-indigo-300 text-indigo-700 hover:border-indigo-500'
+                  }`}
                 >
                   Custom Allocation
                 </Button>
@@ -773,7 +785,7 @@ export default function PortfolioPage() {
             </div>
 
             <Button
-              className="w-full mt-4"
+              className="w-full mt-4 bg-emerald-600 hover:bg-emerald-700 border-2 border-emerald-700 text-white font-bold shadow-md hover:shadow-lg transition-all duration-200 disabled:bg-gray-400 disabled:border-gray-400 disabled:text-gray-600"
               disabled={!validation.isComplete || !validation.isWithinPositionLimit}
               onClick={handleConfirmPortfolio}
             >

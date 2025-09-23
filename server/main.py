@@ -5,7 +5,7 @@ import structlog
 import asyncio
 
 from app.utils.config import get_settings
-from app.api.endpoints import health, auth, stocks, portfolio, trading_mode, orders, monitoring, trading, market
+from app.api.endpoints import health, auth, stocks, portfolio, trading_mode, orders, monitoring, trading, market, market_indicators
 from app.api.websocket import ws_router
 from app.services.data_simulator import data_simulator
 from app.core.trading.trading_controller import trading_controller
@@ -67,6 +67,7 @@ app.include_router(orders.router, prefix="/api", tags=["orders"])
 app.include_router(monitoring.router, prefix="/api", tags=["monitoring"])
 app.include_router(trading.router, prefix="/api/trading", tags=["trading"])
 app.include_router(market.router, prefix="/api/market", tags=["market"])
+app.include_router(market_indicators.router, tags=["market-indicators"])
 
 # WebSocket 라우터 등록
 app.include_router(ws_router, tags=["websocket"])

@@ -55,7 +55,7 @@ async def get_all_stocks(
     sector: Optional[str] = Query(None, description="Filter by sector"),
     min_price: Optional[float] = Query(None, ge=0, description="Minimum price"),
     max_price: Optional[float] = Query(None, ge=0, description="Maximum price"),
-    limit: int = Query(100, ge=1, le=1000, description="Maximum number of results")
+    limit: int = Query(1000, ge=1, le=5000, description="Maximum number of results")
 ):
     """
     전체 주식 목록 조회
@@ -75,7 +75,7 @@ async def get_all_stocks(
                 break
 
             try:
-                symbol = stock_data.get('mksc_shrn_iscd', '')
+                symbol = stock_data.get('mksc_shrn_iscd', '') or stock_data.get('stck_shrn_iscd', '')
                 name = stock_data.get('hts_kor_isnm', '')
 
                 # 하드코딩된 목록의 경우 개별 주식 정보를 추가로 조회
@@ -224,7 +224,7 @@ async def get_after_hours_price(symbol: str):
 @router.get("/ranking/volume", response_model=ApiResponse[List[dict]])
 async def get_volume_ranking(
     market_div: str = Query("J", description="Market division (J: KOSPI, Q: KOSDAQ)"),
-    limit: int = Query(50, ge=1, le=200, description="Number of results")
+    limit: int = Query(200, ge=1, le=1000, description="Number of results")
 ):
     """
     거래량 순위 조회 - 모의투자/실거래 모드에 따라 해당 데이터 반환

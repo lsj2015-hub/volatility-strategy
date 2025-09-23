@@ -265,7 +265,11 @@ export function SessionControls({
               <Button
                 onClick={handleStartSession}
                 disabled={isLoading || portfolioTargets.length === 0}
-                className="flex-1"
+                className={`flex-1 font-bold border-2 shadow-md hover:shadow-lg transition-all duration-200 ${
+                  portfolioTargets.length === 0
+                    ? 'bg-gray-100 hover:bg-gray-200 border-gray-300 text-gray-600'
+                    : 'bg-cyan-600 hover:bg-cyan-700 border-cyan-700 text-white'
+                } disabled:bg-gray-300 disabled:border-gray-300 disabled:text-gray-500`}
                 variant={portfolioTargets.length === 0 ? "outline" : "default"}
               >
                 <Play className="h-4 w-4 mr-2" />

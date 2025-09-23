@@ -341,7 +341,6 @@ export const useSettingsStore = create<SettingsStore>()(
         schedule: state.schedule,
         // API settings은 보안상 저장하지 않음
       }),
-      skipHydration: true,
     }
   )
 );

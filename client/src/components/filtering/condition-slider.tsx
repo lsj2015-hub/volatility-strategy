@@ -69,7 +69,7 @@ export function ConditionSlider({
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <Label className="text-sm font-semibold text-gray-900">{label}</Label>
-          <div className="px-3 py-1 bg-blue-50 border border-blue-200 rounded-full text-xs font-medium text-blue-700">
+          <div className="px-3 py-1.5 bg-blue-100 border-2 border-blue-300 rounded-lg text-sm font-bold text-blue-800 shadow-sm">
             {formatValue(value[0])} - {formatValue(value[1])}
           </div>
         </div>
@@ -105,8 +105,8 @@ export function ConditionSlider({
             />
           </div>
 
-          <div className="flex-1 text-center hidden sm:block">
-            <div className="text-xs text-gray-400 font-medium">
+          <div className="flex-1 text-center">
+            <div className="text-xs text-gray-600 font-medium bg-gray-100 rounded px-2 py-1">
               Range: {formatValue(max - min)}
             </div>
           </div>

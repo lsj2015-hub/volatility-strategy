@@ -37,7 +37,7 @@ Navigate to `server/` directory:
 ```bash
 cd server
 source venv/bin/activate           # Activate virtual environment
-uvicorn main:app --reload --port 8001  # Start FastAPI server with auto-reload
+uvicorn main:app --reload --port 8000  # Start FastAPI server with auto-reload
 python main.py                    # Alternative: Start server directly
 ```
 
@@ -46,7 +46,7 @@ python main.py                    # Alternative: Start server directly
 ### Frontend (`client/`)
 - **Framework**: Next.js 15.5.3 with App Router
 - **Language**: TypeScript with strict mode
-- **Styling**: Tailwind CSS v4 + shadcn/ui components
+- **Styling**: Tailwind CSS v3.4.15 + shadcn/ui components
 - **State Management**: Zustand for global state (trading mode, settings, data)
 - **Trading Mode**: Real-time toggle between mock/real trading with header display
 - **Real-time**: WebSocket connection to FastAPI backend
@@ -155,7 +155,7 @@ The system supports dynamic switching between mock trading (모의투자) and re
 - Types: `src/types/trading.ts` (TradingModeData, TradingModeRequest)
 
 ### Configuration
-```bash
+```b\
 # Environment Variables (server/.env)
 KIS_MOCK_TRADING=true                                    # Default to mock trading
 KIS_MOCK_BASE_URL=https://openapivts.koreainvestment.com:29443  # Mock API URL
@@ -267,7 +267,7 @@ def set_trading_mode(self, is_mock: bool) -> None:
 - [x] **Next.js Project Setup** (completed)
   - [x] Next.js 15.5.3 with App Router initialized
   - [x] TypeScript configuration with strict mode
-  - [x] Tailwind CSS v4 setup
+  - [x] Tailwind CSS v3.4.15 setup
   - [x] Basic layout and routing structure
 
 - [x] **Project Dependencies** (`client/package.json`)
@@ -423,17 +423,17 @@ def set_trading_mode(self, is_mock: bool) -> None:
   - [x] Time-based exit targets
   - [x] Force liquidation countdown
 
-- [ ] **Position Tracking** (`src/components/trading/`)
-  - [ ] Individual position cards
-  - [ ] Profit/loss visualization
-  - [ ] Target price indicators
-  - [ ] Exit strategy timeline
+- [x] **Position Tracking** (`src/components/trading/`)
+  - [x] Individual position cards
+  - [x] Profit/loss visualization
+  - [x] Target price indicators
+  - [x] Exit strategy timeline
 
-- [ ] **Exit Management** (`src/components/trading/`)
-  - [ ] Manual exit controls
-  - [ ] Partial liquidation options
-  - [ ] Emergency stop controls
-  - [ ] Exit confirmation dialogs
+- [x] **Exit Management** (`src/components/trading/`)
+  - [x] Manual exit controls
+  - [x] Partial liquidation options
+  - [x] Emergency stop controls
+  - [x] Exit confirmation dialogs
 
 ### Phase 7: Analytics & Settings
 - [x] **Performance Analytics** (`src/app/analytics/page.tsx`)
@@ -448,11 +448,11 @@ def set_trading_mode(self, is_mock: bool) -> None:
   - [x] Notification preferences
   - [x] API connection settings
 
-- [ ] **Charts & Visualization** (`src/components/charts/`)
-  - [ ] Real-time price charts
-  - [ ] Performance trend charts
-  - [ ] Portfolio allocation pie charts
-  - [ ] Historical performance graphs
+- [x] **Charts & Visualization** (`src/components/charts/`)
+  - [x] Real-time price charts
+  - [x] Performance trend charts
+  - [x] Portfolio allocation pie charts
+  - [x] Historical performance graphs
 
 ## Frontend Development Commands (Updated)
 
@@ -560,10 +560,10 @@ npm run format                   # Format with Prettier
 - [x] **Core Module Structure** (`app/core/`)
   - [x] Trading module initialization (`app/core/trading/__init__.py`)
   - [x] Monitoring module initialization (`app/core/monitoring/__init__.py`)
-  - [ ] Automated buy order execution
-  - [ ] Position management system
-  - [ ] Time-based exit strategy implementation
-  - [ ] Force liquidation logic (15:20-15:30)
+  - [x] Automated buy order execution
+  - [x] Position management system
+  - [x] Time-based exit strategy implementation
+  - [x] Force liquidation logic (15:20-15:30)
 
 - [x] **Monitoring System** (`app/core/monitoring/`)
   - [x] Session manager implementation (`session_manager.py`)
@@ -577,11 +577,11 @@ npm run format                   # Format with Prettier
   - [x] WebSocket real-time updates (monitoring status, price updates, buy signals)
 
 ### Phase 4: Scheduling & Automation
-- [ ] **Task Scheduler** (`app/services/scheduler.py`)
-  - [ ] Daily filtering at 15:30
-  - [ ] After-hours monitoring schedule (16:00, 16:30, 17:00, 17:30)
-  - [ ] Position monitoring during trading hours
-  - [ ] Automatic liquidation scheduling
+- [x] **Task Scheduler** (`app/services/scheduler.py`)
+  - [x] Daily filtering at 15:30
+  - [x] After-hours monitoring schedule (16:00, 16:30, 17:00, 17:30)
+  - [x] Position monitoring during trading hours
+  - [x] Automatic liquidation scheduling
 
 - [x] **WebSocket Implementation** (`app/api/websocket.py`)
   - [x] Real-time price updates
@@ -599,16 +599,16 @@ npm run format                   # Format with Prettier
   - [x] Token storage directory (`data/tokens/`)
   - [x] Cache directory (`data/cache/`)
   - [x] Logs directory (`data/logs/`)
-  - [ ] JSON-based configuration management
-  - [ ] Trading session state persistence
-  - [ ] Daily performance logging
-  - [ ] Settings backup and restore
+  - [x] JSON-based configuration management
+  - [x] Trading session state persistence
+  - [x] Daily performance logging
+  - [x] Settings backup and restore
 
-- [ ] **Performance Analytics** (`app/services/analytics.py`)
-  - [ ] Daily/weekly/monthly performance calculation
-  - [ ] Win rate and average return metrics
-  - [ ] Drawdown analysis
-  - [ ] Strategy effectiveness reporting
+- [x] **Performance Analytics** (`app/services/analytics.py`)
+  - [x] Daily/weekly/monthly performance calculation
+  - [x] Win rate and average return metrics
+  - [x] Drawdown analysis
+  - [x] Strategy effectiveness reporting
 
 ## Development Commands (Updated)
 
