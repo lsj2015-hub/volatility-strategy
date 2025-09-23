@@ -6,6 +6,76 @@
 import { apiClient } from './client';
 import type { MarketIndicesResponse, IndexData } from '@/types';
 
+export interface MarketIndicatorData {
+  name: string;
+  value: number;
+  status: 'normal' | 'warning' | 'critical';
+  trend: 'up' | 'down' | 'stable';
+  description: string;
+  timestamp: string;
+}
+
+export interface ComprehensiveMarketData {
+  indices: Record<string, IndexData>;
+  market_breadth: {
+    total_stocks: number;
+    up_stocks: number;
+    down_stocks: number;
+    unchanged_stocks: number;
+    advance_decline_ratio: number;
+    timestamp: string;
+  };
+  volatility: {
+    metrics: Record<string, any>;
+    market_condition: string;
+    timestamp: string;
+  };
+  calculated_indicators: Record<string, MarketIndicatorData>;
+  summary: {
+    overall_condition: MarketIndicatorData | null;
+    market_stress: MarketIndicatorData | null;
+    total_indicators: number;
+    warning_count: number;
+    critical_count: number;
+  };
+  timestamp: string;
+  success: boolean;
+}
+
+export interface MarketSummaryResponse {
+  data: {
+    kospi: {
+      price: number;
+      change: number;
+      status: 'up' | 'down' | 'stable';
+    };
+    kosdaq: {
+      price: number;
+      change: number;
+      status: 'up' | 'down' | 'stable';
+    };
+    market_condition: {
+      status: 'normal' | 'warning' | 'critical';
+      description: string;
+      trend: 'up' | 'down' | 'stable';
+    };
+    volatility: {
+      level: string;
+      value: number;
+    };
+    breadth: {
+      advance_decline_ratio: number;
+      up_stocks_ratio: number;
+    };
+    alert_count: {
+      warning: number;
+      critical: number;
+    };
+    timestamp: string;
+  };
+  success: boolean;
+}
+
 /**
  * KOSPI/KOSDAQ 시장 지수 데이터 조회
  */

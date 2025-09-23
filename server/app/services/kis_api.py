@@ -337,6 +337,105 @@ class KISAPIClient:
         response = await self._make_request("GET", endpoint, headers=headers, params=params)
         return response.get("output", {})
 
+    async def get_market_indices(self) -> Dict[str, Any]:
+        """KOSPI/KOSDAQ 시장 지수 데이터 조회"""
+        try:
+            indices_data = {}
+
+            # KOSPI 조회
+            kospi_data = await self._get_index_price("0001", "KOSPI")
+            if kospi_data:
+                indices_data["kospi"] = kospi_data
+
+            # KOSDAQ 조회
+            kosdaq_data = await self._get_index_price("1001", "KOSDAQ")
+            if kosdaq_data:
+                indices_data["kosdaq"] = kosdaq_data
+
+            indices_data["timestamp"] = datetime.now().isoformat()
+
+            return indices_data
+
+        except Exception as e:
+            logger.error(f"Failed to get market indices: {e}")
+            return {"error": str(e)}
+
+    async def get_index_price(self, index_code: str) -> Optional[Dict[str, Any]]:
+        """개별 지수 가격 조회 (public method)"""
+        index_names = {
+            "0001": "KOSPI",
+            "1001": "KOSDAQ",
+            "2001": "KOSPI200"
+        }
+        index_name = index_names.get(index_code, f"Index_{index_code}")
+        return await self._get_index_price(index_code, index_name)
+
+    async def _get_index_price(self, index_code: str, index_name: str) -> Optional[Dict[str, Any]]:
+        """내부 지수 가격 조회 메서드"""
+        try:
+            # 모의투자 모드에서는 가짜 데이터 반환
+            if self.is_mock_trading:
+                return self._generate_mock_index_data(index_code, index_name)
+
+            # 실제 KIS API 호출
+            endpoint = "/uapi/domestic-stock/v1/quotations/inquire-index-price"
+
+            headers = {
+                "tr_id": "FHPST01010000"
+            }
+
+            params = {
+                "FID_COND_MRKT_DIV_CODE": "U",
+                "FID_INPUT_ISCD": index_code
+            }
+
+            response = await self._make_request("GET", endpoint, headers=headers, params=params)
+
+            if response and "output" in response:
+                data = response["output"]
+
+                return {
+                    "index_code": index_code,
+                    "index_name": index_name,
+                    "current_price": float(data.get("bstp_nmix_prpr", 0)),
+                    "price_change": float(data.get("bstp_nmix_prdy_vrss", 0)),
+                    "change_rate": float(data.get("prdy_ctrt", 0)),
+                    "trading_volume": int(data.get("acml_vol", 0)),
+                    "timestamp": datetime.now().isoformat()
+                }
+
+        except Exception as e:
+            logger.warning(f"Failed to get {index_name} price: {e}")
+            # 실패 시 모의 데이터 반환
+            return self._generate_mock_index_data(index_code, index_name)
+
+        return None
+
+    def _generate_mock_index_data(self, index_code: str, index_name: str) -> Dict[str, Any]:
+        """모의투자용 가짜 지수 데이터 생성"""
+        import random
+
+        base_prices = {
+            "0001": 3200,  # KOSPI
+            "1001": 1000,  # KOSDAQ
+            "2001": 430    # KOSPI200
+        }
+
+        base_price = base_prices.get(index_code, 2500)
+        current_price = base_price + random.uniform(-50, 50)
+        price_change = random.uniform(-30, 30)
+        change_rate = (price_change / base_price) * 100
+
+        return {
+            "index_code": index_code,
+            "index_name": f"{index_name} (Mock)",
+            "current_price": round(current_price, 2),
+            "price_change": round(price_change, 2),
+            "change_rate": round(change_rate, 2),
+            "trading_volume": random.randint(100000000, 500000000),
+            "timestamp": datetime.now().isoformat()
+        }
+
     async def get_stock_volume_ranking(self, market_div: str = "J") -> List[Dict[str, Any]]:
         """거래량 순위 조회 (모의투자/실거래 모드에 따라 해당 데이터 반환)"""
 

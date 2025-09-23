@@ -463,3 +463,37 @@ class PortfolioStateManager:
 data_persistence = DataPersistence()
 session_manager = SessionManager(data_persistence)
 portfolio_state_manager = PortfolioStateManager(data_persistence)
+
+# Convenience functions for backward compatibility
+async def save_json_data(file_path: str, data: Any) -> bool:
+    """편의 함수: JSON 데이터 저장"""
+    try:
+        path = Path(file_path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, cls=JSONEncoder, ensure_ascii=False, indent=2)
+
+        logger.debug(f"JSON data saved: {file_path}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to save JSON data to {file_path}: {e}")
+        return False
+
+async def load_json_data(file_path: str, default: Any = None) -> Any:
+    """편의 함수: JSON 데이터 로드"""
+    try:
+        path = Path(file_path)
+
+        if not path.exists():
+            logger.debug(f"JSON file not found: {file_path}")
+            return default
+
+        with open(path, 'r', encoding='utf-8') as f:
+            data = json.load(f, object_hook=json_decode_hook)
+
+        logger.debug(f"JSON data loaded: {file_path}")
+        return data
+    except Exception as e:
+        logger.error(f"Failed to load JSON data from {file_path}: {e}")
+        return default
