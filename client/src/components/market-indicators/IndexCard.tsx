@@ -16,7 +16,6 @@ interface IndexCardProps {
 export function IndexCard({ index, className }: IndexCardProps) {
   const isPositive = index.change > 0;
   const isNegative = index.change < 0;
-  const isFlat = index.change === 0;
 
   const changeColor = isPositive ? 'text-red-600' : isNegative ? 'text-blue-600' : 'text-gray-500';
   const bgColor = isPositive ? 'bg-red-50' : isNegative ? 'bg-blue-50' : 'bg-gray-50';

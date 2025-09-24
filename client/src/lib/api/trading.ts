@@ -82,7 +82,7 @@ export const tradingApi = {
     price: number;
     quantity: number;
     reason: string;
-    condition_met: Record<string, any>;
+    condition_met: Record<string, unknown>;
   }) {
     const response = await apiClient.post('/api/trading/signals/buy', signalData);
     return response.data;
@@ -100,7 +100,7 @@ export const tradingApi = {
   },
 
   async updateExitStrategy(strategy: {
-    phase_config?: Record<string, any>;
+    phase_config?: Record<string, unknown>;
     force_exit_time?: string;
     max_hold_hours?: number;
   }) {

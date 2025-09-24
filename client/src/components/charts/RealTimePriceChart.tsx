@@ -16,7 +16,7 @@ import {
   ReferenceLine,
   Brush
 } from 'recharts'
-import { Play, Pause, RotateCcw, TrendingUp, TrendingDown, Activity } from 'lucide-react'
+import { Play, Pause, TrendingUp, Activity } from 'lucide-react'
 
 interface PriceData {
   timestamp: string
@@ -24,6 +24,11 @@ interface PriceData {
   volume: number
   change: number
   change_percent: number
+}
+
+interface ProcessedPriceData extends PriceData {
+  time: string
+  displayTime: string
 }
 
 interface RealTimePriceChartProps {
@@ -44,7 +49,7 @@ export function RealTimePriceChart({
   const [timeRange, setTimeRange] = useState<'1h' | '4h' | '1d' | 'all'>('4h')
   const [showVolume, setShowVolume] = useState(false)
   const [autoScale, setAutoScale] = useState(true)
-  const chartRef = useRef<any>(null)
+  const chartRef = useRef<HTMLDivElement | null>(null)
 
   // 시간 범위에 따른 데이터 필터링
   const getFilteredData = () => {
@@ -96,7 +101,12 @@ export function RealTimePriceChart({
   const isPositive = latestData?.change >= 0
 
   // 커스텀 툴팁
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const CustomTooltip = ({ active, payload }: {
+    active?: boolean;
+    payload?: {
+      payload: ProcessedPriceData;
+    }[];
+  }) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload
       return (
@@ -129,9 +139,8 @@ export function RealTimePriceChart({
     if (isRealTime && chartRef.current) {
       // 실시간 모드에서 최신 데이터로 스크롤
       const timer = setTimeout(() => {
-        const chartElement = chartRef.current?.container
-        if (chartElement) {
-          chartElement.scrollLeft = chartElement.scrollWidth
+        if (chartRef.current) {
+          chartRef.current.scrollLeft = chartRef.current.scrollWidth
         }
       }, 100)
 
@@ -173,7 +182,7 @@ export function RealTimePriceChart({
             )}
           </div>
           <div className="flex items-center space-x-2">
-            <Select value={timeRange} onValueChange={(value: any) => setTimeRange(value)}>
+            <Select value={timeRange} onValueChange={(value: '1h' | '4h' | '1d' | 'all') => setTimeRange(value)}>
               <SelectTrigger className="w-20">
                 <SelectValue />
               </SelectTrigger>
@@ -243,8 +252,8 @@ export function RealTimePriceChart({
         )}
 
         {/* 가격 차트 */}
-        <div style={{ height }}>
-          <ResponsiveContainer width="100%" height="100%" ref={chartRef}>
+        <div style={{ height }} ref={chartRef}>
+          <ResponsiveContainer width="100%" height="100%">
             <LineChart
               data={processedData}
               margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
@@ -392,15 +401,23 @@ export function MultiSymbolPriceChart({ symbols, data, height = 400 }: MultiSymb
     })
 
     return acc
-  }, [] as any[])
+  }, [] as Record<string, unknown>[])
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const CustomTooltip = ({ active, payload, label }: {
+    active?: boolean;
+    payload?: {
+      dataKey: string;
+      value: number;
+      color: string;
+    }[];
+    label?: string;
+  }) => {
     if (active && payload && payload.length) {
       return (
         <div className="bg-white p-3 border rounded-lg shadow-lg">
           <p className="font-medium">{label}</p>
           <div className="space-y-1 text-sm">
-            {payload.map((entry: any, index: number) => (
+            {payload.map((entry, index: number) => (
               <p key={index} style={{ color: entry.color }}>
                 <span className="font-medium">{entry.dataKey}: </span>
                 {entry.value >= 0 ? '+' : ''}{entry.value.toFixed(2)}%

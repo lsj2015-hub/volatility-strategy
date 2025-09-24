@@ -12,7 +12,7 @@ export type WebSocketMessageType =
 export interface WebSocketMessage {
   type: WebSocketMessageType;
   timestamp: string;
-  data: any;
+  data: unknown;
 }
 
 export interface PriceUpdateMessage {
@@ -74,7 +74,7 @@ export interface PortfolioUpdateMessage {
     changes: Array<{
       symbol: string;
       action: 'added' | 'updated' | 'removed';
-      position?: any;
+      position?: unknown;
     }>;
   };
 }

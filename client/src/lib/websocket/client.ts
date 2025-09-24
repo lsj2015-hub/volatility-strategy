@@ -2,12 +2,7 @@
 
 import {
   WebSocketMessage,
-  WebSocketConnectionStatus,
-  PriceUpdateMessage,
-  BuySignalMessage,
-  SellSignalMessage,
-  SessionStatusMessage,
-  PortfolioUpdateMessage
+  WebSocketConnectionStatus
 } from '@/types/websocket';
 
 type WebSocketEventHandler = (message: WebSocketMessage) => void;
@@ -217,23 +212,21 @@ export class WebSocketClient {
   }
 
   // Event subscription methods
-  on(event: 'price_update', handler: (message: PriceUpdateMessage) => void): () => void;
-  on(event: 'buy_signal', handler: (message: BuySignalMessage) => void): () => void;
-  on(event: 'sell_signal', handler: (message: SellSignalMessage) => void): () => void;
-  on(event: 'session_status', handler: (message: SessionStatusMessage) => void): () => void;
-  on(event: 'portfolio_update', handler: (message: PortfolioUpdateMessage) => void): () => void;
-  on(event: '*', handler: WebSocketEventHandler): () => void;
-  on(event: string, handler: WebSocketEventHandler): () => void {
+  on<T extends WebSocketMessage>(
+    event: T['type'] | '*' | string,
+    handler: (message: T) => void
+  ): () => void {
+    const eventHandler = handler as WebSocketEventHandler;
     if (!this.eventHandlers.has(event)) {
       this.eventHandlers.set(event, new Set());
     }
 
     const handlers = this.eventHandlers.get(event)!;
-    handlers.add(handler);
+    handlers.add(eventHandler);
 
     // Return unsubscribe function
     return () => {
-      handlers.delete(handler);
+      handlers.delete(eventHandler);
       if (handlers.size === 0) {
         this.eventHandlers.delete(event);
       }

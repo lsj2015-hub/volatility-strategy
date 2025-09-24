@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import OrderManagement from '@/components/trading/OrderManagement';
 import ExitStrategyControls from '@/components/trading/ExitStrategyControls';

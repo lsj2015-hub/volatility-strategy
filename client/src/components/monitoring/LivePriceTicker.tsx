@@ -23,18 +23,20 @@ interface StockData {
 
 interface LivePriceTickerProps {
   stocks: StockData[];
+  isConnected?: boolean;
+  autoRefresh?: boolean;
+  refreshInterval?: number;
 }
 
-export default function LivePriceTicker({
-  stocks
-}: LivePriceTickerProps) {
+export default function LivePriceTicker({ stocks }: LivePriceTickerProps) {
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [animationKey, setAnimationKey] = useState(0);
 
   // WebSocket integration
   const { status: wsStatus } = useWebSocket();
-  const stockCodes = stocks.map(stock => stock.code);
-  const { prices: livePrices, pricesReceived } = useStockListMonitoring(stockCodes);
+  const stockCodes = stocks.map((stock) => stock.code);
+  const { prices: livePrices, pricesReceived } =
+    useStockListMonitoring(stockCodes);
 
   // 실시간 시간 업데이트
   useEffect(() => {
@@ -48,14 +50,14 @@ export default function LivePriceTicker({
   // WebSocket 가격 업데이트 시 애니메이션 트리거
   useEffect(() => {
     if (livePrices.length > 0) {
-      setAnimationKey(prev => prev + 1);
+      setAnimationKey((prev) => prev + 1);
     }
   }, [livePrices]);
 
   // 실시간 가격 데이터와 기본 주식 데이터 병합
   const getUpdatedStockData = (): StockData[] => {
-    return stocks.map(stock => {
-      const livePrice = livePrices.find(price => price.symbol === stock.code);
+    return stocks.map((stock) => {
+      const livePrice = livePrices.find((price) => price.symbol === stock.code);
       if (livePrice) {
         return {
           ...stock,
@@ -67,8 +69,8 @@ export default function LivePriceTicker({
             hour12: false,
             hour: '2-digit',
             minute: '2-digit',
-            second: '2-digit'
-          })
+            second: '2-digit',
+          }),
         };
       }
       return stock;
@@ -115,8 +117,12 @@ export default function LivePriceTicker({
             )}
           </CardTitle>
           <div className="flex items-center space-x-2">
-            <Badge variant={wsStatus.connected ? "default" : "destructive"}>
-              {wsStatus.connected ? '실시간 연결' : wsStatus.reconnecting ? '재연결 중' : '연결 끊김'}
+            <Badge variant={wsStatus.connected ? 'default' : 'destructive'}>
+              {wsStatus.connected
+                ? '실시간 연결'
+                : wsStatus.reconnecting
+                ? '재연결 중'
+                : '연결 끊김'}
             </Badge>
             <span className="text-sm text-muted-foreground">
               {currentTime?.toLocaleTimeString('ko-KR') || '--:--:--'}
@@ -136,18 +142,25 @@ export default function LivePriceTicker({
                 <div className="flex items-center space-x-3">
                   <div>
                     <div className="font-semibold text-lg">{stock.name}</div>
-                    <div className="text-sm text-muted-foreground">{stock.code}</div>
+                    <div className="text-sm text-muted-foreground">
+                      {stock.code}
+                    </div>
                   </div>
                   <Badge
                     variant={
-                      stock.status === 'triggered' ? 'default' :
-                      stock.status === 'active' ? 'secondary' :
-                      'outline'
+                      stock.status === 'triggered'
+                        ? 'default'
+                        : stock.status === 'active'
+                        ? 'secondary'
+                        : 'outline'
                     }
                     className="ml-2"
                   >
-                    {stock.status === 'triggered' ? '매수 신호' :
-                     stock.status === 'active' ? '모니터링' : '일시정지'}
+                    {stock.status === 'triggered'
+                      ? '매수 신호'
+                      : stock.status === 'active'
+                      ? '모니터링'
+                      : '일시정지'}
                   </Badge>
                 </div>
               </div>
@@ -166,14 +179,22 @@ export default function LivePriceTicker({
 
                 {/* 변동 정보 */}
                 <div className="text-right min-w-[120px]">
-                  <div className={`flex items-center justify-end space-x-1 ${getChangeColor(stock.priceChange)}`}>
+                  <div
+                    className={`flex items-center justify-end space-x-1 ${getChangeColor(
+                      stock.priceChange
+                    )}`}
+                  >
                     {getChangeIcon(stock.priceChange)}
                     <span className="font-semibold">
-                      {stock.priceChange >= 0 ? '+' : ''}{formatPrice(stock.priceChange)}
+                      {stock.priceChange >= 0 ? '+' : ''}
+                      {formatPrice(stock.priceChange)}
                     </span>
                   </div>
-                  <div className={`text-sm ${getChangeColor(stock.changePercent)}`}>
-                    {stock.changePercent >= 0 ? '+' : ''}{stock.changePercent.toFixed(2)}%
+                  <div
+                    className={`text-sm ${getChangeColor(stock.changePercent)}`}
+                  >
+                    {stock.changePercent >= 0 ? '+' : ''}
+                    {stock.changePercent.toFixed(2)}%
                   </div>
                 </div>
 
@@ -192,15 +213,15 @@ export default function LivePriceTicker({
         <div className="mt-4 pt-4 border-t">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>
-              모니터링 종목: {stockCodes.length}개 | 실시간 수신: {pricesReceived}개
+              모니터링 종목: {stockCodes.length}개 | 실시간 수신:{' '}
+              {pricesReceived}개
             </span>
             <span>
-              {wsStatus.connected ?
-                `실시간 WebSocket 스트리밍 활성` :
-                wsStatus.reconnecting ?
-                  '연결 재시도 중...' :
-                  '데이터 연결을 확인해주세요'
-              }
+              {wsStatus.connected
+                ? `실시간 WebSocket 스트리밍 활성`
+                : wsStatus.reconnecting
+                ? '연결 재시도 중...'
+                : '데이터 연결을 확인해주세요'}
             </span>
           </div>
         </div>

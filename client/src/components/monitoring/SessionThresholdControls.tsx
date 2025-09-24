@@ -71,8 +71,19 @@ export function SessionThresholdControls({
     setError(null);
 
     try {
-      const response = await monitoringAPI.previewThresholdAdjustment(selectedStrategy);
-      setPreview(response);
+      // API는 'manual' 전략을 지원하지 않으므로 'balanced'로 대체
+      const apiStrategy = selectedStrategy === 'manual' ? 'balanced' : selectedStrategy;
+      const response = await monitoringAPI.previewThresholdAdjustment(apiStrategy);
+
+      // API 응답의 strategy를 원래 요청된 strategy로 설정
+      if (response) {
+        setPreview({
+          ...response,
+          strategy: selectedStrategy
+        } as ThresholdPreviewResponse);
+      } else {
+        setPreview(null);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to preview adjustment');
     } finally {

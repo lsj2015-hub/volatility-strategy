@@ -4,16 +4,13 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Separator } from '@/components/ui/separator';
 import { tradingApi } from '@/lib/api';
 import {
   TradingSystemStatus,
   TradingPosition,
   BuyOrder,
-  TradingStats,
-  ExitStrategy
+  TradingStats
 } from '@/types';
 
 export default function TradingDashboardPage() {
@@ -21,7 +18,6 @@ export default function TradingDashboardPage() {
   const [positions, setPositions] = useState<TradingPosition[]>([]);
   const [orders, setOrders] = useState<BuyOrder[]>([]);
   const [stats, setStats] = useState<TradingStats | null>(null);
-  const [exitStrategy, setExitStrategy] = useState<ExitStrategy | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,19 +25,19 @@ export default function TradingDashboardPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [statusRes, positionsRes, ordersRes, statsRes, exitRes] = await Promise.all([
+        const [statusRes, positionsRes, ordersRes, statsRes] = await Promise.all([
           tradingApi.getSystemStatus(),
           tradingApi.getAllPositions(),
           tradingApi.getAllOrders(),
           tradingApi.getTradingStats(),
-          tradingApi.getExitStrategy()
         ]);
 
-        setSystemStatus(statusRes);
-        setPositions(positionsRes.positions || []);
-        setOrders(ordersRes.pending?.slice(0, 5) || []); // Show recent 5 orders
-        setStats(statsRes);
-        setExitStrategy(exitRes);
+        setSystemStatus(statusRes as TradingSystemStatus);
+        const posData = positionsRes as { positions: TradingPosition[] };
+        setPositions(posData.positions || []);
+        const orderData = ordersRes as { pending: BuyOrder[] };
+        setOrders(orderData.pending?.slice(0, 5) || []); // Show recent 5 orders
+        setStats(statsRes as TradingStats);
         setError(null);
       } catch (err) {
         setError(`Failed to fetch trading data: ${err}`);

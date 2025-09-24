@@ -3,7 +3,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { ConditionSlider } from './condition-slider';
 import { PresetButtonsEnhanced } from './preset-buttons-enhanced';
 import { AdvancedMomentumSliders } from './advanced-momentum-sliders';

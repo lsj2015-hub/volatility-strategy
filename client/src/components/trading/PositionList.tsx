@@ -1,16 +1,16 @@
 "use client"
 
 import React, { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { RefreshCw, Search, Filter, TrendingUp, TrendingDown, DollarSign } from 'lucide-react'
+import { RefreshCw, Search, TrendingUp, TrendingDown, DollarSign } from 'lucide-react'
 import { PositionCard } from './PositionCard'
 import { Position } from '@/types'
-import { portfolioApi } from '@/lib/api'
+import { PortfolioService } from '@/lib/api'
 
 interface PositionListProps {
   onManualExit?: (positionId: string) => void
@@ -34,15 +34,15 @@ export function PositionList({ onManualExit, onPartialExit }: PositionListProps)
       setLoading(true)
       setError(null)
 
-      const response = await portfolioApi.getPositions()
+      const response = await PortfolioService.getPositions()
 
-      if (response.status === 'success') {
+      if (response.success && response.data) {
         setPositions({
           active: response.data.active || [],
           closed: response.data.closed || []
         })
       } else {
-        setError(response.message || '포지션 데이터를 불러올 수 없습니다.')
+        setError(response.error || '포지션 데이터를 불러올 수 없습니다.')
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.')
@@ -81,13 +81,13 @@ export function PositionList({ onManualExit, onPartialExit }: PositionListProps)
     filtered.sort((a, b) => {
       switch (sortBy) {
         case 'pnl_desc':
-          return b.current_pnl - a.current_pnl
+          return (b.current_pnl || 0) - (a.current_pnl || 0)
         case 'pnl_asc':
-          return a.current_pnl - b.current_pnl
+          return (a.current_pnl || 0) - (b.current_pnl || 0)
         case 'pnl_percent_desc':
-          return b.current_pnl_percent - a.current_pnl_percent
+          return (b.current_pnl_percent || 0) - (a.current_pnl_percent || 0)
         case 'pnl_percent_asc':
-          return a.current_pnl_percent - b.current_pnl_percent
+          return (a.current_pnl_percent || 0) - (b.current_pnl_percent || 0)
         case 'symbol_asc':
           return a.symbol.localeCompare(b.symbol)
         case 'symbol_desc':
@@ -107,10 +107,10 @@ export function PositionList({ onManualExit, onPartialExit }: PositionListProps)
   // 포지션 요약 통계
   const getPositionSummary = (positionList: Position[]) => {
     const total = positionList.length
-    const profitable = positionList.filter(p => p.current_pnl > 0).length
-    const totalPnL = positionList.reduce((sum, p) => sum + p.current_pnl, 0)
+    const profitable = positionList.filter(p => (p.current_pnl || 0) > 0).length
+    const totalPnL = positionList.reduce((sum, p) => sum + (p.current_pnl || 0), 0)
     const totalInvestment = positionList.reduce((sum, p) => sum + (p.entry_price * p.quantity), 0)
-    const avgPnLPercent = total > 0 ? positionList.reduce((sum, p) => sum + p.current_pnl_percent, 0) / total : 0
+    const avgPnLPercent = total > 0 ? positionList.reduce((sum, p) => sum + (p.current_pnl_percent || 0), 0) / total : 0
 
     return {
       total,

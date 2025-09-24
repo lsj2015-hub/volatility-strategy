@@ -3,7 +3,7 @@
 import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts'
-import { Position } from '@/types'
+import { Position, PriceUpdate } from '@/types'
 
 interface ProfitLossChartProps {
   position: Position
@@ -12,7 +12,7 @@ interface ProfitLossChartProps {
 
 export function ProfitLossChart({ position, height = 200 }: ProfitLossChartProps) {
   // 가격 업데이트 데이터를 차트 형식으로 변환
-  const chartData = position.price_updates?.map((update, index) => ({
+  const chartData = position.price_updates?.map((update: PriceUpdate) => ({
     time: new Date(update.timestamp).toLocaleTimeString('ko-KR', {
       hour: '2-digit',
       minute: '2-digit',
@@ -22,8 +22,8 @@ export function ProfitLossChart({ position, height = 200 }: ProfitLossChartProps
     pnl: update.pnl,
     pnl_percent: update.pnl_percent,
     entry_price: position.entry_price,
-    target_price: position.entry_price * (1 + position.target_profit_percent / 100),
-    stop_loss_price: position.entry_price * (1 + position.stop_loss_percent / 100)
+    target_price: position.entry_price * (1 + (position.target_profit_percent || 0) / 100),
+    stop_loss_price: position.entry_price * (1 + (position.stop_loss_percent || 0) / 100)
   })) || []
 
   // 현재 가격 포인트 추가
@@ -38,8 +38,8 @@ export function ProfitLossChart({ position, height = 200 }: ProfitLossChartProps
       pnl: position.current_pnl,
       pnl_percent: position.current_pnl_percent,
       entry_price: position.entry_price,
-      target_price: position.entry_price * (1 + position.target_profit_percent / 100),
-      stop_loss_price: position.entry_price * (1 + position.stop_loss_percent / 100)
+      target_price: position.entry_price * (1 + (position.target_profit_percent || 0) / 100),
+      stop_loss_price: position.entry_price * (1 + (position.stop_loss_percent || 0) / 100)
     })
   }
 
@@ -57,7 +57,23 @@ export function ProfitLossChart({ position, height = 200 }: ProfitLossChartProps
   }
 
   // 커스텀 툴팁
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  interface TooltipProps {
+    active?: boolean;
+    payload?: Array<{
+      payload: {
+        time: string;
+        price: number;
+        pnl: number;
+        pnl_percent: number;
+        entry_price: number;
+        target_price: number;
+        stop_loss_price: number;
+      };
+    }>;
+    label?: string;
+  }
+
+  const CustomTooltip = ({ active, payload, label }: TooltipProps) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload
       return (
@@ -197,7 +213,7 @@ interface PnLAreaChartProps {
 
 export function PnLAreaChart({ position, height = 200 }: PnLAreaChartProps) {
   // P&L 데이터 차트 형식으로 변환
-  const chartData = position.price_updates?.map((update) => ({
+  const chartData = position.price_updates?.map((update: PriceUpdate) => ({
     time: new Date(update.timestamp).toLocaleTimeString('ko-KR', {
       hour: '2-digit',
       minute: '2-digit'
@@ -227,7 +243,19 @@ export function PnLAreaChart({ position, height = 200 }: PnLAreaChartProps) {
     }).format(value)
   }
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  interface PnLTooltipProps {
+    active?: boolean;
+    payload?: Array<{
+      payload: {
+        time: string;
+        pnl: number;
+        pnl_percent: number;
+      };
+    }>;
+    label?: string;
+  }
+
+  const CustomTooltip = ({ active, payload, label }: PnLTooltipProps) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload
       return (
@@ -284,15 +312,7 @@ export function PnLAreaChart({ position, height = 200 }: PnLAreaChartProps) {
               />
               <Tooltip content={<CustomTooltip />} />
 
-              {/* 제로 라인 */}
-              <Line
-                type="monotone"
-                dataKey={() => 0}
-                stroke="#6b7280"
-                strokeDasharray="2 2"
-                strokeWidth={1}
-                dot={false}
-              />
+              {/* AreaChart에서는 제로 라인을 Y축 설정으로 처리 */}
 
               {/* P&L 영역 */}
               <Area

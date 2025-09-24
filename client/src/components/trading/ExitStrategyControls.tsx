@@ -10,7 +10,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { tradingApi } from '@/lib/api';
-import { ExitStrategy, UpdateExitStrategyRequest } from '@/types';
+import { ExitStrategy, ExitPhaseConfig, UpdateExitStrategyRequest } from '@/types';
 
 export default function ExitStrategyControls() {
   const [strategy, setStrategy] = useState<ExitStrategy | null>(null);
@@ -24,7 +24,7 @@ export default function ExitStrategyControls() {
 
   const fetchStrategy = async () => {
     try {
-      const response = await tradingApi.getExitStrategy();
+      const response = await tradingApi.getExitStrategy() as ExitStrategy;
       setStrategy(response);
 
       // Initialize editable config
@@ -95,25 +95,24 @@ export default function ExitStrategyControls() {
   };
 
   const updatePhaseConfig = (phase: string, field: string, value: number) => {
-    setEditableStrategy(prev => ({
-      ...prev,
-      phase_config: {
-        ...prev.phase_config,
-        [phase]: {
-          ...prev.phase_config?.[phase],
-          [field]: value
+    setEditableStrategy(prev => {
+      const currentPhaseConfig = prev.phase_config?.[phase] || {} as ExitPhaseConfig;
+
+      return {
+        ...prev,
+        phase_config: {
+          ...prev.phase_config,
+          [phase]: {
+            ...currentPhaseConfig,
+            [field]: value
+          } as ExitPhaseConfig
         }
-      }
-    }));
+      };
+    });
   };
 
   const getCurrentPhaseProgress = () => {
-    if (!strategy?.current_phase || !strategy?.next_phase_time) return 0;
-
-    const now = new Date();
-    const nextPhase = new Date(strategy.next_phase_time);
-    const currentTime = now.getTime();
-    const nextTime = nextPhase.getTime();
+    if (!strategy?.current_phase) return 0;
 
     // Calculate progress based on current trading day phase
     const phases = ['early_morning', 'mid_morning', 'afternoon', 'force_exit'];

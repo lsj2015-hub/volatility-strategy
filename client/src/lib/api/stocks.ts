@@ -7,17 +7,26 @@ import {
   StockData,
   FilterConditions,
   FilteredStock,
-  ApiResponse
+  StockApiResponse,
+  VolumeRankingResponse,
+  StockPriceResponse,
 } from '@/types';
 
 /**
  * Helper function to format error messages properly
  */
-function formatErrorMessage(response: any, fallback: string): string {
-  if (response.error) {
-    return typeof response.error === 'string' ? response.error : JSON.stringify(response.error);
-  } else if (response.message) {
-    return response.message;
+function formatErrorMessage(response: unknown, fallback: string): string {
+  if (typeof response === 'object' && response !== null) {
+    const obj = response as Record<string, unknown>;
+    if (obj.error) {
+      return typeof obj.error === 'string'
+        ? obj.error
+        : JSON.stringify(obj.error);
+    } else if (obj.message) {
+      return typeof obj.message === 'string'
+        ? obj.message
+        : JSON.stringify(obj.message);
+    }
   }
   return fallback;
 }
@@ -53,7 +62,7 @@ export class StocksService {
     max_price?: number;
     limit?: number;
   }): Promise<StockData[]> {
-    const response = await apiClient.get<any[]>('/api/stocks/all', params);
+    const response = await apiClient.get<StockApiResponse[]>('/api/stocks/all', params);
 
     if (!response.success || !response.data) {
       let errorMessage = 'Failed to get stocks';
@@ -66,15 +75,15 @@ export class StocksService {
     }
 
     // 백엔드 응답을 프론트엔드 타입에 맞게 변환
-    const transformedData: StockData[] = response.data.map((stock: any) => ({
+    const transformedData: StockData[] = response.data.map((stock: StockApiResponse) => ({
       symbol: stock.symbol,
       name: stock.name,
-      currentPrice: stock.current_price || stock.currentPrice,
-      previousClose: stock.previous_close || stock.previousClose,
+      currentPrice: stock.current_price,
+      previousClose: stock.previous_close,
       change: stock.change,
-      changePercent: stock.change_percent || stock.changePercent,
+      changePercent: stock.change_percent,
       volume: stock.volume,
-      marketCap: stock.market_cap || stock.marketCap,
+      marketCap: stock.market_cap,
       sector: stock.sector,
       industry: stock.industry,
     }));
@@ -98,8 +107,8 @@ export class StocksService {
   /**
    * 시간외 호가 조회
    */
-  static async getAfterHoursPrice(symbol: string): Promise<any> {
-    const response = await apiClient.get<any>(`/api/stocks/${symbol}/after-hours`);
+  static async getAfterHoursPrice(symbol: string): Promise<unknown> {
+    const response = await apiClient.get<unknown>(`/api/stocks/${symbol}/after-hours`);
 
     if (!response.success || !response.data) {
       throw new Error(formatErrorMessage(response, 'Failed to get after-hours price'));
@@ -114,8 +123,8 @@ export class StocksService {
   static async getVolumeRanking(params?: {
     market_div?: string;
     limit?: number;
-  }): Promise<any[]> {
-    const response = await apiClient.get<any[]>('/api/stocks/ranking/volume', params);
+  }): Promise<VolumeRankingResponse[]> {
+    const response = await apiClient.get<VolumeRankingResponse[]>('/api/stocks/ranking/volume', params);
 
     if (!response.success || !response.data) {
       throw new Error(formatErrorMessage(response, 'Failed to get volume ranking'));
@@ -127,8 +136,8 @@ export class StocksService {
   /**
    * 여러 주식 실시간 가격 조회
    */
-  static async getMultipleStockPrices(symbols: string[]): Promise<any[]> {
-    const response = await apiClient.post<any[]>('/api/stocks/prices', {
+  static async getMultipleStockPrices(symbols: string[]): Promise<StockPriceResponse[]> {
+    const response = await apiClient.post<StockPriceResponse[]>('/api/stocks/prices', {
       symbols
     });
 

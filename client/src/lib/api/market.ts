@@ -26,7 +26,7 @@ export interface ComprehensiveMarketData {
     timestamp: string;
   };
   volatility: {
-    metrics: Record<string, any>;
+    metrics: Record<string, number | string | boolean>;
     market_condition: string;
     timestamp: string;
   };
@@ -105,10 +105,11 @@ export async function getIndexData(indexCode: string): Promise<{
     success: boolean;
   }>(`/api/market-indicators/indices/${indexCode}`);
 
-  if (!response) {
-    throw new Error(`No data received for index: ${indexCode}`);
+  if (!response.success || !response.data) {
+    throw new Error(response.error || `No data received for index: ${indexCode}`);
   }
-  return response as any;
+
+  return response.data;
 }
 
 /**
@@ -129,8 +130,9 @@ export async function getMarketIndicatorsHealth(): Promise<{
     error?: string;
   }>('/api/market-indicators/health');
 
-  if (!response) {
-    throw new Error('No health status received');
+  if (!response.success || !response.data) {
+    throw new Error(response.error || 'No health status received');
   }
-  return response as any;
+
+  return response.data;
 }

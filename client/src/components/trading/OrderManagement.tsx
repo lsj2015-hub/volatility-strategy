@@ -1,13 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Separator } from '@/components/ui/separator';
 import {
   Table,
   TableBody,
@@ -18,6 +17,11 @@ import {
 } from '@/components/ui/table';
 import { tradingApi } from '@/lib/api';
 import { BuyOrder, BuyOrderRequest } from '@/types';
+
+interface OrdersResponse {
+  pending: BuyOrder[];
+  completed: BuyOrder[];
+}
 
 export default function OrderManagement() {
   const [orders, setOrders] = useState<{ pending: BuyOrder[], completed: BuyOrder[] }>({
@@ -37,24 +41,43 @@ export default function OrderManagement() {
   });
 
   // Fetch orders data
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     try {
       const response = await tradingApi.getAllOrders();
-      setOrders(response);
+
+      // Type assertion with runtime validation
+      const ordersData = response as OrdersResponse;
+
+      // Validate the response structure
+      if (
+        ordersData &&
+        typeof ordersData === 'object' &&
+        'pending' in ordersData &&
+        'completed' in ordersData &&
+        Array.isArray(ordersData.pending) &&
+        Array.isArray(ordersData.completed)
+      ) {
+        setOrders(ordersData);
+      } else {
+        console.warn('Invalid orders response structure:', response);
+        setOrders({ pending: [], completed: [] });
+      }
+
       setError(null);
     } catch (err) {
       setError(`Failed to fetch orders: ${err}`);
+      setOrders({ pending: [], completed: [] });
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchOrders();
     // Refresh every 10 seconds
     const interval = setInterval(fetchOrders, 10000);
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchOrders]);
 
   const handleCreateOrder = async (e: React.FormEvent) => {
     e.preventDefault();

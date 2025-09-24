@@ -14,13 +14,12 @@ import {
   AlertTriangle,
   TrendingUp,
   Clock,
-  DollarSign,
   CheckCircle,
   XCircle,
   Volume2,
-  VolumeX
+  VolumeX,
 } from 'lucide-react';
-import { useBuySignals, useWebSocket } from '@/hooks/useWebSocket';
+import { useBuySignals } from '@/hooks/useWebSocket';
 
 interface BuySignal {
   id: string;

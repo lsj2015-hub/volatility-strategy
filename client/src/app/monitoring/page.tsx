@@ -1,11 +1,16 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Clock, TrendingUp, Eye, AlertTriangle, Activity } from 'lucide-react';
+import { Clock, Eye, AlertTriangle, Activity } from 'lucide-react';
 
 // Import monitoring components
 import LivePriceTicker from '@/components/monitoring/LivePriceTicker';
@@ -17,23 +22,11 @@ import SessionThresholdControls from '@/components/monitoring/SessionThresholdCo
 // Import hooks
 import useMonitoringSession from '@/hooks/useMonitoringSession';
 
+// Import types
+import type { AdjustmentStrategy, StartMonitoringRequest } from '@/types';
+
 export default function MonitoringPage() {
   // Additional state for UI components
-  const [isConnected, setIsConnected] = useState(true);
-  const [soundEnabled, setSoundEnabled] = useState(true);
-  const [currentTime, setCurrentTime] = useState('');
-
-  // Real-time clock
-  useEffect(() => {
-    const updateTime = () => {
-      setCurrentTime(new Date().toLocaleTimeString('ko-KR'));
-    };
-
-    updateTime(); // Initial update
-    const interval = setInterval(updateTime, 1000);
-
-    return () => clearInterval(interval);
-  }, []);
 
   const {
     status,
@@ -42,7 +35,7 @@ export default function MonitoringPage() {
     startSession,
     stopSession,
     adjustThreshold,
-    autoAdjustThresholds
+    autoAdjustThresholds,
   } = useMonitoringSession({
     autoRefresh: true,
     refreshInterval: 30000,
@@ -54,58 +47,78 @@ export default function MonitoringPage() {
     },
     onSessionComplete: (stats) => {
       console.log('Session completed:', stats);
-    }
+    },
   });
 
   // Generate real time slots based on current session
   const generateTimeSlots = () => {
     const phaseMapping = {
-      'waiting': 0,
-      'phase_1': 1,
-      'phase_2': 2,
-      'phase_3': 3,
-      'phase_4': 4,
-      'completed': 5
+      waiting: 0,
+      phase_1: 1,
+      phase_2: 2,
+      phase_3: 3,
+      phase_4: 4,
+      completed: 5,
     };
 
-    const currentPhaseIndex = phaseMapping[status?.current_phase as keyof typeof phaseMapping] || 0;
+    const currentPhaseIndex =
+      phaseMapping[status?.current_phase as keyof typeof phaseMapping] || 0;
 
     return [
       {
         time: '16:00',
         label: '1차 모니터링',
-        status: currentPhaseIndex === 1 ? 'active' as const :
-                currentPhaseIndex > 1 ? 'completed' as const : 'pending' as const,
-        threshold: 2.0
+        status:
+          currentPhaseIndex === 1
+            ? ('active' as const)
+            : currentPhaseIndex > 1
+            ? ('completed' as const)
+            : ('pending' as const),
+        threshold: 2.0,
       },
       {
         time: '16:30',
         label: '2차 모니터링',
-        status: currentPhaseIndex === 2 ? 'active' as const :
-                currentPhaseIndex > 2 ? 'completed' as const : 'pending' as const,
-        threshold: 2.0
+        status:
+          currentPhaseIndex === 2
+            ? ('active' as const)
+            : currentPhaseIndex > 2
+            ? ('completed' as const)
+            : ('pending' as const),
+        threshold: 2.0,
       },
       {
         time: '17:00',
         label: '3차 모니터링',
-        status: currentPhaseIndex === 3 ? 'active' as const :
-                currentPhaseIndex > 3 ? 'completed' as const : 'pending' as const,
-        threshold: 2.0
+        status:
+          currentPhaseIndex === 3
+            ? ('active' as const)
+            : currentPhaseIndex > 3
+            ? ('completed' as const)
+            : ('pending' as const),
+        threshold: 2.0,
       },
       {
         time: '17:30',
         label: '최종 모니터링',
-        status: currentPhaseIndex === 4 ? 'active' as const :
-                currentPhaseIndex > 4 ? 'completed' as const : 'pending' as const,
-        threshold: 2.0
-      }
+        status:
+          currentPhaseIndex === 4
+            ? ('active' as const)
+            : currentPhaseIndex > 4
+            ? ('completed' as const)
+            : ('pending' as const),
+        threshold: 2.0,
+      },
     ];
   };
 
   const timeSlots = generateTimeSlots();
 
   // Find triggered targets for buy signal alerts
-  const triggeredTargets = status?.monitoring_targets.filter(target => target.is_triggered && !target.trigger_time) || [];
+  const triggeredTargets =
+    status?.monitoring_targets.filter(
+      (target) => target.is_triggered && !target.trigger_time
+    ) || [];
 
   // Get portfolio data for investment amounts
   const getPortfolioAllocation = (symbol: string) => {
@@ -129,7 +142,9 @@ export default function MonitoringPage() {
     try {
       const trigger = new Date(triggerTime);
       const now = new Date();
-      const elapsedSeconds = Math.floor((now.getTime() - trigger.getTime()) / 1000);
+      const elapsedSeconds = Math.floor(
+        (now.getTime() - trigger.getTime()) / 1000
+      );
       const remainingSeconds = Math.max(0, 30 - elapsedSeconds);
       return remainingSeconds;
     } catch {
@@ -138,7 +153,7 @@ export default function MonitoringPage() {
   };
 
   // Convert triggered targets to buy signals format
-  const buySignals = triggeredTargets.map(target => {
+  const buySignals = triggeredTargets.map((target) => {
     const allocationAmount = getPortfolioAllocation(target.symbol);
     const shares = Math.floor(allocationAmount / target.current_price);
     const actualAmount = shares * target.current_price;
@@ -157,11 +172,13 @@ export default function MonitoringPage() {
       amount: actualAmount,
       shares: shares,
       status: 'pending' as const,
-      timeRemaining: timeRemaining
+      timeRemaining: timeRemaining,
     };
   });
 
-  const handleStartSession = async (targets: any[]) => {
+  const handleStartSession = async (
+    targets: StartMonitoringRequest['targets']
+  ) => {
     const success = await startSession(targets);
     if (!success) {
       console.error('Failed to start session');
@@ -175,14 +192,21 @@ export default function MonitoringPage() {
     }
   };
 
-  const handleThresholdAdjust = async (symbol: string, newThreshold: number) => {
+  const handleThresholdAdjust = async (
+    symbol: string,
+    newThreshold: number
+  ) => {
     const success = await adjustThreshold(symbol, newThreshold);
     if (!success) {
       console.error('Failed to adjust threshold');
     }
   };
 
-  const handleAutoAdjust = async (strategy: any, applyAll: boolean, symbols?: string[]) => {
+  const handleAutoAdjust = async (
+    strategy: AdjustmentStrategy,
+    applyAll: boolean,
+    symbols?: string[]
+  ) => {
     const success = await autoAdjustThresholds(strategy, applyAll, symbols);
     if (!success) {
       console.error('Failed to auto-adjust thresholds');
@@ -226,12 +250,12 @@ export default function MonitoringPage() {
     if (!status || !status.is_running) return 0;
 
     const phaseProgress = {
-      'waiting': 0,
-      'phase_1': 25,
-      'phase_2': 50,
-      'phase_3': 75,
-      'phase_4': 90,
-      'completed': 100
+      waiting: 0,
+      phase_1: 25,
+      phase_2: 50,
+      phase_3: 75,
+      phase_4: 90,
+      completed: 100,
     };
 
     return phaseProgress[status.current_phase] || 0;
@@ -282,16 +306,22 @@ export default function MonitoringPage() {
         {/* Left Column - Live Price Ticker */}
         <div className="xl:col-span-2 space-y-6">
           <LivePriceTicker
-            stocks={status?.monitoring_targets ? status.monitoring_targets.map(target => ({
-              code: target.symbol,
-              name: target.stock_name,
-              currentPrice: target.current_price,
-              priceChange: target.current_price - target.entry_price,
-              changePercent: target.change_percent,
-              volume: target.volume || 0,
-              lastUpdate: new Date().toLocaleTimeString('ko-KR'),
-              status: target.is_triggered ? 'triggered' as const : 'active' as const
-            })) : []}
+            stocks={
+              status?.monitoring_targets
+                ? status.monitoring_targets.map((target) => ({
+                    code: target.symbol,
+                    name: target.stock_name,
+                    currentPrice: target.current_price,
+                    priceChange: target.current_price - target.entry_price,
+                    changePercent: target.change_percent,
+                    volume: target.volume || 0,
+                    lastUpdate: new Date().toLocaleTimeString('ko-KR'),
+                    status: target.is_triggered
+                      ? ('triggered' as const)
+                      : ('active' as const),
+                  }))
+                : []
+            }
           />
 
           {/* Progress Timeline */}
@@ -301,14 +331,15 @@ export default function MonitoringPage() {
         {/* Right Column - Controls and Alerts */}
         <div className="space-y-6">
           {/* Threshold Controls */}
-          {status?.monitoring_targets && status.monitoring_targets.length > 0 && (
-            <SessionThresholdControls
-              targets={status.monitoring_targets}
-              onAdjustThreshold={handleThresholdAdjust}
-              onAutoAdjust={handleAutoAdjust}
-              loading={isLoading}
-            />
-          )}
+          {status?.monitoring_targets &&
+            status.monitoring_targets.length > 0 && (
+              <SessionThresholdControls
+                targets={status.monitoring_targets}
+                onAdjustThreshold={handleThresholdAdjust}
+                onAutoAdjust={handleAutoAdjust}
+                loading={isLoading}
+              />
+            )}
 
           {/* Buy Signal Alerts */}
           {buySignals.length > 0 && (
@@ -340,20 +371,33 @@ export default function MonitoringPage() {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               {/* 모니터링 대상 */}
               <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600">{status.total_targets}</div>
-                <div className="text-sm text-muted-foreground">모니터링 대상</div>
+                <div className="text-2xl font-bold text-blue-600">
+                  {status.total_targets}
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  모니터링 대상
+                </div>
               </div>
 
               {/* 매수 신호 발생 */}
               <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">{status.triggered_count}</div>
-                <div className="text-sm text-muted-foreground">매수 신호 발생</div>
+                <div className="text-2xl font-bold text-green-600">
+                  {status.triggered_count}
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  매수 신호 발생
+                </div>
               </div>
 
               {/* 성공률 */}
               <div className="text-center">
                 <div className="text-2xl font-bold text-purple-600">
-                  {status.total_targets > 0 ? Math.round((status.triggered_count / status.total_targets) * 100) : 0}%
+                  {status.total_targets > 0
+                    ? Math.round(
+                        (status.triggered_count / status.total_targets) * 100
+                      )
+                    : 0}
+                  %
                 </div>
                 <div className="text-sm text-muted-foreground">성공률</div>
               </div>
@@ -361,7 +405,9 @@ export default function MonitoringPage() {
               {/* 남은 시간 */}
               <div className="text-center">
                 <div className="text-2xl font-bold text-orange-600">
-                  {status.remaining_time_seconds > 0 ? formatRemainingTime(status.remaining_time_seconds) : '-'}
+                  {status.remaining_time_seconds > 0
+                    ? formatRemainingTime(status.remaining_time_seconds)
+                    : '-'}
                 </div>
                 <div className="text-sm text-muted-foreground">남은 시간</div>
               </div>

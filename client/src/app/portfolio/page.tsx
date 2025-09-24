@@ -6,7 +6,6 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import dynamic from 'next/dynamic';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -44,7 +43,7 @@ export default function PortfolioPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { riskManagement } = useSettingsStore();
-  const { data: tradingMode } = useTradingModeStore();
+  const { mode: tradingMode } = useTradingModeStore();
   const { selectedStocks: portfolioStocks } = usePortfolioStore();
   const [isClient, setIsClient] = useState(false);
 
@@ -95,11 +94,11 @@ export default function PortfolioPage() {
       }
 
       try {
-        console.log(`Portfolio: Fetching ${selectedSymbols.length} selected stocks from API using ${tradingMode?.is_mock ? 'mock' : 'real'} trading data`);
+        console.log(`Portfolio: Fetching ${selectedSymbols.length} selected stocks from API using ${tradingMode?.is_mock_trading ? 'mock' : 'real'} trading data`);
 
         // 각 종목의 상세 정보를 개별적으로 가져오기
         const stockPromises = selectedSymbols.map(symbol =>
-          StocksService.getStockDetail(symbol).catch((error: any) => {
+          StocksService.getStockDetail(symbol).catch((error: unknown) => {
             console.warn(`Failed to fetch ${symbol}:`, error);
             return null;
           })
@@ -108,7 +107,7 @@ export default function PortfolioPage() {
         const stockResponses = await Promise.all(stockPromises);
 
         const stocks: FilteredStock[] = [];
-        stockResponses.forEach((response: any, index: number) => {
+        stockResponses.forEach((response: unknown, index: number) => {
           if (response?.success && response.data) {
             // API 응답을 FilteredStock 형태로 변환
             const stockData = response.data;
@@ -159,7 +158,7 @@ export default function PortfolioPage() {
     return () => {
       isMounted = false;
     };
-  }, [portfolioStocks.length, selectedSymbols.join(','), tradingMode?.is_mock]);
+  }, [portfolioStocks.length, selectedSymbols.join(','), tradingMode?.is_mock_trading]);
 
   // 초기 배분 설정
   useEffect(() => {
@@ -433,7 +432,7 @@ export default function PortfolioPage() {
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Portfolio Management</h1>
             <p className="text-muted-foreground">
-              Loading selected stocks using {tradingMode?.is_mock ? 'mock' : 'real'} trading data...
+              Loading selected stocks using {tradingMode?.is_mock_trading ? 'mock' : 'real'} trading data...
             </p>
           </div>
         </div>
@@ -504,7 +503,7 @@ export default function PortfolioPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Portfolio Management</h1>
           <p className="text-muted-foreground">
-            Allocate investments across {selectedStocks.length} selected stocks using {tradingMode?.is_mock ? 'mock' : 'real'} trading data
+            Allocate investments across {selectedStocks.length} selected stocks using {tradingMode?.is_mock_trading ? 'mock' : 'real'} trading data
           </p>
         </div>
         <div className="flex items-center space-x-2">

@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
   PieChart,
@@ -15,10 +14,9 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
   Treemap
 } from 'recharts'
-import { PieChart as PieChartIcon, BarChart3, Grid, TrendingUp, TrendingDown } from 'lucide-react'
+import { PieChart as PieChartIcon, BarChart3, TrendingUp } from 'lucide-react'
 
 interface AllocationData {
   symbol: string
@@ -30,7 +28,9 @@ interface AllocationData {
   pnl_percent: number
   sector?: string
   market_cap?: string
+  [key: string]: string | number | undefined // Index signature for recharts compatibility
 }
+
 
 interface PortfolioAllocationChartProps {
   data: AllocationData[]
@@ -70,7 +70,7 @@ export function PortfolioAllocationChart({ data, height = 400 }: PortfolioAlloca
   }))
 
   // 커스텀 툴팁
-  const CustomTooltip = ({ active, payload }: any) => {
+  const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: { payload: AllocationData }[] }) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload
       return (
@@ -104,8 +104,15 @@ export function PortfolioAllocationChart({ data, height = 400 }: PortfolioAlloca
   }
 
   // 트리맵 커스텀 컨텐츠
-  const TreemapContent = ({ x, y, width, height, payload }: any) => {
-    if (width < 50 || height < 30) return null
+  const TreemapContent = (props: Record<string, unknown>) => {
+    const { x, y, width, height } = props as {
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    };
+    const payload = (props as { payload?: { name: string; fill: string; pnl_percent: number } }).payload;
+    if (width < 50 || height < 30 || !payload) return <g></g>
 
     return (
       <g>
@@ -145,7 +152,16 @@ export function PortfolioAllocationChart({ data, height = 400 }: PortfolioAlloca
   }
 
   // 파이 차트 커스텀 라벨
-  const renderPieLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, symbol }: any) => {
+  const renderPieLabel = (props: Record<string, unknown>) => {
+    const { cx, cy, midAngle, innerRadius, outerRadius, percent } = props as {
+      cx: number;
+      cy: number;
+      midAngle: number;
+      innerRadius: number;
+      outerRadius: number;
+      percent: number;
+    };
+    const symbol = (props as { symbol?: string }).symbol || '';
     if (percent < 0.05) return null // 5% 미만은 라벨 생략
 
     const RADIAN = Math.PI / 180
@@ -183,7 +199,7 @@ export function PortfolioAllocationChart({ data, height = 400 }: PortfolioAlloca
               fill="#8884d8"
               dataKey="allocation_percent"
             >
-              {sortedData.map((entry, index) => (
+              {sortedData.map((_, index) => (
                 <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
               ))}
             </Pie>
@@ -219,15 +235,13 @@ export function PortfolioAllocationChart({ data, height = 400 }: PortfolioAlloca
           <Treemap
             data={treemapData}
             dataKey="size"
-            ratio={4 / 3}
             stroke="#fff"
-            strokeWidth={2}
-            content={<TreemapContent />}
+            content={(props: unknown) => TreemapContent(props as Record<string, unknown>)}
           />
         )
 
       default:
-        return null
+        return <div>Chart type not supported</div>
     }
   }
 
@@ -250,7 +264,7 @@ export function PortfolioAllocationChart({ data, height = 400 }: PortfolioAlloca
             <span>포트폴리오 구성</span>
           </CardTitle>
           <div className="flex items-center space-x-2">
-            <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+            <Select value={sortBy} onValueChange={(value: 'allocation' | 'pnl' | 'value') => setSortBy(value)}>
               <SelectTrigger className="w-32">
                 <SelectValue />
               </SelectTrigger>
@@ -261,7 +275,7 @@ export function PortfolioAllocationChart({ data, height = 400 }: PortfolioAlloca
               </SelectContent>
             </Select>
 
-            <Select value={chartType} onValueChange={(value: any) => setChartType(value)}>
+            <Select value={chartType} onValueChange={(value: 'pie' | 'bar' | 'treemap') => setChartType(value)}>
               <SelectTrigger className="w-32">
                 <SelectValue />
               </SelectTrigger>
@@ -335,7 +349,6 @@ export function AllocationSummary({ data }: AllocationSummaryProps) {
   const totalPnLPercent = totalInvestment > 0 ? (totalPnL / totalInvestment) * 100 : 0
 
   const profitablePositions = data.filter(item => item.pnl > 0).length
-  const lossPositions = data.filter(item => item.pnl < 0).length
   const winRate = data.length > 0 ? (profitablePositions / data.length) * 100 : 0
 
   const bestPerformer = data.reduce((best, current) =>

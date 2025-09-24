@@ -62,17 +62,29 @@ export function useWebSocket() {
 // Hook for subscribing to specific WebSocket events
 export function useWebSocketEvent<T extends WebSocketMessage>(
   eventType: T['type'],
-  handler: (message: T) => void,
-  deps: React.DependencyList = []
+  handler: (message: T) => void
 ) {
   const clientRef = useRef(getWebSocketClient());
+  const handlerRef = useRef(handler);
+
+  // Keep handler reference up to date
+  useEffect(() => {
+    handlerRef.current = handler;
+  }, [handler]);
 
   useEffect(() => {
     const client = clientRef.current;
-    const unsubscribe = client.on(eventType, handler as any);
 
+    // Type-safe wrapper that matches the WebSocket client API
+    const eventHandler = (message: WebSocketMessage) => {
+      if (message.type === eventType) {
+        handlerRef.current(message as T);
+      }
+    };
+
+    const unsubscribe = client.on('*', eventHandler);
     return unsubscribe;
-  }, deps);
+  }, [eventType]);
 }
 
 // Hook for price updates
@@ -87,7 +99,7 @@ export function usePriceUpdates() {
       return updated;
     });
     setLastUpdate(message.timestamp);
-  }, []);
+  });
 
   const getPriceData = useCallback((symbol: string) => {
     return prices.get(symbol) || null;
@@ -95,8 +107,8 @@ export function usePriceUpdates() {
 
   const getAllPrices = useCallback(() => {
     return Array.from(prices.entries()).map(([symbol, data]) => ({
-      symbol,
-      ...data
+      ...data,
+      symbol // This ensures the symbol from data is used, but adds it explicitly
     }));
   }, [prices]);
 
@@ -115,7 +127,7 @@ export function useBuySignals() {
   useWebSocketEvent('buy_signal', (message: BuySignalMessage) => {
     setSignals(prev => [message, ...prev.slice(0, 99)]); // Keep last 100 signals
     setLatestSignal(message);
-  }, []);
+  });
 
   const clearSignals = useCallback(() => {
     setSignals([]);
@@ -137,7 +149,7 @@ export function useSellSignals() {
   useWebSocketEvent('sell_signal', (message: SellSignalMessage) => {
     setSignals(prev => [message, ...prev.slice(0, 99)]); // Keep last 100 signals
     setLatestSignal(message);
-  }, []);
+  });
 
   const clearSignals = useCallback(() => {
     setSignals([]);
@@ -159,7 +171,7 @@ export function useSessionStatus() {
   useWebSocketEvent('session_status', (message: SessionStatusMessage) => {
     setStatus(message.data);
     setLastUpdate(message.timestamp);
-  }, []);
+  });
 
   return {
     status,
@@ -182,7 +194,7 @@ export function usePortfolioUpdates() {
       ...message.data.changes,
       ...prev.slice(0, 50 - message.data.changes.length)
     ]);
-  }, []);
+  });
 
   return {
     portfolio,

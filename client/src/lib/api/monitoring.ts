@@ -20,6 +20,25 @@ export class MonitoringAPIError extends Error {
   }
 }
 
+// Error handling utility
+function extractErrorMessage(error: unknown, fallback: string): string {
+  if (error && typeof error === 'object' && 'response' in error) {
+    const response = (error as { response?: { data?: { detail?: string }; status?: number } }).response;
+    if (response?.data?.detail) {
+      return response.data.detail;
+    }
+  }
+  return fallback;
+}
+
+function extractStatusCode(error: unknown): number | undefined {
+  if (error && typeof error === 'object' && 'response' in error) {
+    const response = (error as { response?: { status?: number } }).response;
+    return response?.status;
+  }
+  return undefined;
+}
+
 export const monitoringAPI = {
   // === Session Management ===
 
@@ -32,12 +51,24 @@ export const monitoringAPI = {
     targets_count: number;
   }> {
     try {
-      const response = await apiClient.post('/api/monitoring/start', request);
+      const response = await apiClient.post<{
+        success: boolean;
+        message: string;
+        targets_count: number;
+      }>('/api/monitoring/start', request);
+
+      if (!response.success || !response.data) {
+        throw new MonitoringAPIError(response.error || 'Failed to start monitoring session');
+      }
+
       return response.data;
-    } catch (error: any) {
+    } catch (error: unknown) {
+      if (error instanceof MonitoringAPIError) {
+        throw error;
+      }
       throw new MonitoringAPIError(
-        error?.response?.data?.detail || 'Failed to start monitoring session',
-        error?.response?.status
+        extractErrorMessage(error, 'Failed to start monitoring session'),
+        extractStatusCode(error)
       );
     }
   },
@@ -50,12 +81,23 @@ export const monitoringAPI = {
     message: string;
   }> {
     try {
-      const response = await apiClient.post('/api/monitoring/stop');
+      const response = await apiClient.post<{
+        success: boolean;
+        message: string;
+      }>('/api/monitoring/stop');
+
+      if (!response.success || !response.data) {
+        throw new MonitoringAPIError(response.error || 'Failed to stop monitoring session');
+      }
+
       return response.data;
-    } catch (error: any) {
+    } catch (error: unknown) {
+      if (error instanceof MonitoringAPIError) {
+        throw error;
+      }
       throw new MonitoringAPIError(
-        error?.response?.data?.detail || 'Failed to stop monitoring session',
-        error?.response?.status
+        extractErrorMessage(error, 'Failed to stop monitoring session'),
+        extractStatusCode(error)
       );
     }
   },
@@ -68,12 +110,23 @@ export const monitoringAPI = {
     status: MonitoringSessionStatus;
   }> {
     try {
-      const response = await apiClient.get('/api/monitoring/status');
+      const response = await apiClient.get<{
+        success: boolean;
+        status: MonitoringSessionStatus;
+      }>('/api/monitoring/status');
+
+      if (!response.success || !response.data) {
+        throw new MonitoringAPIError(response.error || 'Failed to get monitoring status');
+      }
+
       return response.data;
-    } catch (error: any) {
+    } catch (error: unknown) {
+      if (error instanceof MonitoringAPIError) {
+        throw error;
+      }
       throw new MonitoringAPIError(
-        error?.response?.data?.detail || 'Failed to get monitoring status',
-        error?.response?.status
+        extractErrorMessage(error, 'Failed to get monitoring status'),
+        extractStatusCode(error)
       );
     }
   },
@@ -87,12 +140,24 @@ export const monitoringAPI = {
     count: number;
   }> {
     try {
-      const response = await apiClient.get('/api/monitoring/targets');
+      const response = await apiClient.get<{
+        success: boolean;
+        targets: MonitoringTarget[];
+        count: number;
+      }>('/api/monitoring/targets');
+
+      if (!response.success || !response.data) {
+        throw new MonitoringAPIError(response.error || 'Failed to get monitoring targets');
+      }
+
       return response.data;
-    } catch (error: any) {
+    } catch (error: unknown) {
+      if (error instanceof MonitoringAPIError) {
+        throw error;
+      }
       throw new MonitoringAPIError(
-        error?.response?.data?.detail || 'Failed to get monitoring targets',
-        error?.response?.status
+        extractErrorMessage(error, 'Failed to get monitoring targets'),
+        extractStatusCode(error)
       );
     }
   },
@@ -110,12 +175,26 @@ export const monitoringAPI = {
     strategy: string;
   }> {
     try {
-      const response = await apiClient.post('/api/monitoring/adjust-threshold', request);
+      const response = await apiClient.post<{
+        success: boolean;
+        message: string;
+        symbol: string;
+        new_threshold: number;
+        strategy: string;
+      }>('/api/monitoring/adjust-threshold', request);
+
+      if (!response.success || !response.data) {
+        throw new MonitoringAPIError(response.error || 'Failed to adjust threshold');
+      }
+
       return response.data;
-    } catch (error: any) {
+    } catch (error: unknown) {
+      if (error instanceof MonitoringAPIError) {
+        throw error;
+      }
       throw new MonitoringAPIError(
-        error?.response?.data?.detail || 'Failed to adjust threshold',
-        error?.response?.status
+        extractErrorMessage(error, 'Failed to adjust threshold'),
+        extractStatusCode(error)
       );
     }
   },
@@ -135,12 +214,26 @@ export const monitoringAPI = {
     adjustments: ThresholdAdjustmentResponse[];
   }> {
     try {
-      const response = await apiClient.post('/api/monitoring/auto-adjust-thresholds', request);
+      const response = await apiClient.post<{
+        success: boolean;
+        message: string;
+        strategy: string;
+        market_condition: MarketCondition;
+        adjustments: ThresholdAdjustmentResponse[];
+      }>('/api/monitoring/auto-adjust-thresholds', request);
+
+      if (!response.success || !response.data) {
+        throw new MonitoringAPIError(response.error || 'Failed to auto-adjust thresholds');
+      }
+
       return response.data;
-    } catch (error: any) {
+    } catch (error: unknown) {
+      if (error instanceof MonitoringAPIError) {
+        throw error;
+      }
       throw new MonitoringAPIError(
-        error?.response?.data?.detail || 'Failed to auto-adjust thresholds',
-        error?.response?.status
+        extractErrorMessage(error, 'Failed to auto-adjust thresholds'),
+        extractStatusCode(error)
       );
     }
   },
@@ -157,12 +250,27 @@ export const monitoringAPI = {
     }>;
   }> {
     try {
-      const response = await apiClient.get('/api/monitoring/suggested-strategies');
+      const response = await apiClient.get<{
+        success: boolean;
+        market_condition: MarketCondition;
+        suggested_strategies: Array<{
+          strategy: string;
+          description: string;
+        }>;
+      }>('/api/monitoring/suggested-strategies');
+
+      if (!response.success || !response.data) {
+        throw new MonitoringAPIError(response.error || 'Failed to get suggested strategies');
+      }
+
       return response.data;
-    } catch (error: any) {
+    } catch (error: unknown) {
+      if (error instanceof MonitoringAPIError) {
+        throw error;
+      }
       throw new MonitoringAPIError(
-        error?.response?.data?.detail || 'Failed to get suggested strategies',
-        error?.response?.status
+        extractErrorMessage(error, 'Failed to get suggested strategies'),
+        extractStatusCode(error)
       );
     }
   },
@@ -190,12 +298,32 @@ export const monitoringAPI = {
       const params = new URLSearchParams({ strategy });
       if (symbol) params.append('symbol', symbol);
 
-      const response = await apiClient.get(`/api/monitoring/threshold-preview?${params}`);
+      const response = await apiClient.get<{
+        success: boolean;
+        strategy: string;
+        market_condition: MarketCondition;
+        previews: Array<{
+          symbol: string;
+          stock_name: string;
+          current_threshold: number;
+          recommended_threshold: number;
+          adjustment_reason: string;
+          confidence_score: number;
+        }>;
+      }>(`/api/monitoring/threshold-preview?${params}`);
+
+      if (!response.success || !response.data) {
+        throw new MonitoringAPIError(response.error || 'Failed to preview threshold adjustment');
+      }
+
       return response.data;
-    } catch (error: any) {
+    } catch (error: unknown) {
+      if (error instanceof MonitoringAPIError) {
+        throw error;
+      }
       throw new MonitoringAPIError(
-        error?.response?.data?.detail || 'Failed to preview threshold adjustment',
-        error?.response?.status
+        extractErrorMessage(error, 'Failed to preview threshold adjustment'),
+        extractStatusCode(error)
       );
     }
   },
@@ -214,15 +342,47 @@ export const monitoringAPI = {
       triggered_count: number;
       is_running: boolean;
     };
-    history: any[]; // 향후 확장
+    history: Array<{
+      session_id: string;
+      start_time: string;
+      end_time?: string;
+      total_targets: number;
+      triggered_count: number;
+      success_rate: number;
+    }>; // Session history records
   }> {
     try {
-      const response = await apiClient.get('/api/monitoring/session-history');
+      const response = await apiClient.get<{
+        success: boolean;
+        current_session: {
+          phase: string;
+          start_time: string;
+          total_targets: number;
+          triggered_count: number;
+          is_running: boolean;
+        };
+        history: Array<{
+          session_id: string;
+          start_time: string;
+          end_time?: string;
+          total_targets: number;
+          triggered_count: number;
+          success_rate: number;
+        }>;
+      }>('/api/monitoring/session-history');
+
+      if (!response.success || !response.data) {
+        throw new MonitoringAPIError(response.error || 'Failed to get session history');
+      }
+
       return response.data;
-    } catch (error: any) {
+    } catch (error: unknown) {
+      if (error instanceof MonitoringAPIError) {
+        throw error;
+      }
       throw new MonitoringAPIError(
-        error?.response?.data?.detail || 'Failed to get session history',
-        error?.response?.status
+        extractErrorMessage(error, 'Failed to get session history'),
+        extractStatusCode(error)
       );
     }
   },
@@ -242,12 +402,30 @@ export const monitoringAPI = {
     };
   }> {
     try {
-      const response = await apiClient.get('/api/monitoring/performance-stats');
+      const response = await apiClient.get<{
+        success: boolean;
+        stats: {
+          total_targets: number;
+          triggered_count: number;
+          success_rate: number;
+          average_change_percent: number;
+          session_duration_minutes: number;
+          current_phase: string;
+        };
+      }>('/api/monitoring/performance-stats');
+
+      if (!response.success || !response.data) {
+        throw new MonitoringAPIError(response.error || 'Failed to get performance stats');
+      }
+
       return response.data;
-    } catch (error: any) {
+    } catch (error: unknown) {
+      if (error instanceof MonitoringAPIError) {
+        throw error;
+      }
       throw new MonitoringAPIError(
-        error?.response?.data?.detail || 'Failed to get performance stats',
-        error?.response?.status
+        extractErrorMessage(error, 'Failed to get performance stats'),
+        extractStatusCode(error)
       );
     }
   },

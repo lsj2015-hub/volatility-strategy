@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { Separator } from '@/components/ui/separator'
-import { TrendingUp, TrendingDown, Clock, Target, AlertTriangle, DollarSign } from 'lucide-react'
+import { TrendingUp, TrendingDown, Clock, AlertTriangle } from 'lucide-react'
 import { Position } from '@/types'
 
 interface PositionCardProps {
@@ -16,30 +16,37 @@ interface PositionCardProps {
 }
 
 export function PositionCard({ position, onManualExit, onPartialExit }: PositionCardProps) {
-  const isProfitable = position.current_pnl > 0
+  const currentPnL = position.current_pnl ?? position.unrealizedPnL ?? 0;
+  const currentPnLPercent = position.current_pnl_percent ?? position.unrealizedPnLPercent ?? 0;
+  const isProfitable = currentPnL > 0
   const pnlColor = isProfitable ? 'text-green-600' : 'text-red-600'
   const pnlIcon = isProfitable ? TrendingUp : TrendingDown
   const PnLIcon = pnlIcon
 
+  // Default values for missing properties
+  const targetProfitPercent = 5.0; // Default 5% profit target
+  const stopLossPercent = -2.0; // Default -2% stop loss
+  const maxHoldHours = 6; // Default 6 hours max hold
+
   // 목표까지의 진행률 계산
   const getTargetProgress = () => {
     if (isProfitable) {
-      return Math.min(100, (position.current_pnl_percent / position.target_profit_percent) * 100)
+      return Math.min(100, (currentPnLPercent / targetProfitPercent) * 100)
     } else {
-      const lossProgress = Math.abs(position.current_pnl_percent / position.stop_loss_percent) * 100
+      const lossProgress = Math.abs(currentPnLPercent / stopLossPercent) * 100
       return Math.min(100, lossProgress)
     }
   }
 
   // 시간 남은 비율 계산
   const getTimeProgress = () => {
-    if (!position.time_remaining) return 100
+    // Calculate elapsed time from entry
+    const entryTime = new Date(position.entryTime);
+    const currentTime = new Date();
+    const elapsedHours = (currentTime.getTime() - entryTime.getTime()) / (1000 * 60 * 60);
+    const remainingHours = Math.max(0, maxHoldHours - elapsedHours);
 
-    const totalMinutes = position.max_hold_hours * 60
-    const remainingMinutes = parseInt(position.time_remaining.split(':')[0]) * 60 +
-                           parseInt(position.time_remaining.split(':')[1])
-
-    return Math.max(0, (remainingMinutes / totalMinutes) * 100)
+    return Math.max(0, (remainingHours / maxHoldHours) * 100);
   }
 
   const formatCurrency = (amount: number) => {
@@ -59,10 +66,8 @@ export function PositionCard({ position, onManualExit, onPartialExit }: Position
     switch (position.status) {
       case 'active':
         return <Badge variant="default" className="bg-blue-100 text-blue-800">활성</Badge>
-      case 'monitoring':
-        return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">모니터링</Badge>
-      case 'exit_pending':
-        return <Badge variant="destructive" className="bg-orange-100 text-orange-800">매도 대기</Badge>
+      case 'pending':
+        return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">대기중</Badge>
       case 'closed':
         return <Badge variant="outline" className="bg-gray-100 text-gray-800">종료</Badge>
       default:
@@ -81,9 +86,9 @@ export function PositionCard({ position, onManualExit, onPartialExit }: Position
             {getStatusBadge()}
           </div>
           <div className="text-right">
-            <div className="text-sm text-gray-500">{position.stock_name}</div>
+            <div className="text-sm text-gray-500">{position.name}</div>
             <div className="text-xs text-gray-400">
-              진입: {new Date(position.entry_time).toLocaleString('ko-KR')}
+              진입: {new Date(position.entryTime).toLocaleString('ko-KR')}
             </div>
           </div>
         </div>
@@ -95,13 +100,13 @@ export function PositionCard({ position, onManualExit, onPartialExit }: Position
           <div>
             <div className="text-sm text-gray-500">진입가</div>
             <div className="text-lg font-semibold">
-              {formatCurrency(position.entry_price)}
+              {formatCurrency(position.averagePrice)}
             </div>
           </div>
           <div>
             <div className="text-sm text-gray-500">현재가</div>
             <div className="text-lg font-semibold">
-              {formatCurrency(position.current_price)}
+              {formatCurrency(position.currentPrice)}
             </div>
           </div>
         </div>
@@ -117,10 +122,10 @@ export function PositionCard({ position, onManualExit, onPartialExit }: Position
             </div>
             <div className={`text-right ${pnlColor}`}>
               <div className="font-semibold">
-                {formatCurrency(position.current_pnl)}
+                {formatCurrency(currentPnL)}
               </div>
               <div className="text-sm">
-                {formatPercent(position.current_pnl_percent)}
+                {formatPercent(currentPnLPercent)}
               </div>
             </div>
           </div>
@@ -128,8 +133,8 @@ export function PositionCard({ position, onManualExit, onPartialExit }: Position
           {/* 목표/손절 진행률 */}
           <div className="space-y-2">
             <div className="flex justify-between text-xs text-gray-500">
-              <span>손절: {formatPercent(position.stop_loss_percent)}</span>
-              <span>목표: {formatPercent(position.target_profit_percent)}</span>
+              <span>손절: {formatPercent(stopLossPercent)}</span>
+              <span>목표: {formatPercent(targetProfitPercent)}</span>
             </div>
             <Progress
               value={getTargetProgress()}
@@ -149,7 +154,7 @@ export function PositionCard({ position, onManualExit, onPartialExit }: Position
           <div>
             <div className="text-gray-500">투자금</div>
             <div className="font-medium">
-              {formatCurrency(position.entry_price * position.quantity)}
+              {formatCurrency(position.averagePrice * position.quantity)}
             </div>
           </div>
         </div>
@@ -163,25 +168,25 @@ export function PositionCard({ position, onManualExit, onPartialExit }: Position
             </div>
             <div className="text-right">
               <div className="font-medium">
-                남은 시간: {position.time_remaining || 'N/A'}
+                진행률: {(100 - getTimeProgress()).toFixed(1)}%
               </div>
             </div>
           </div>
           <Progress value={getTimeProgress()} className="h-2" />
         </div>
 
-        {/* 최고가/최저가 */}
+        {/* 시장가치/실현손익 */}
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
-            <div className="text-gray-500">최고가</div>
-            <div className="font-medium text-green-600">
-              {formatCurrency(position.highest_price)}
+            <div className="text-gray-500">시장가치</div>
+            <div className="font-medium text-blue-600">
+              {formatCurrency(position.marketValue)}
             </div>
           </div>
           <div>
-            <div className="text-gray-500">최저가</div>
-            <div className="font-medium text-red-600">
-              {formatCurrency(position.lowest_price)}
+            <div className="text-gray-500">실현손익</div>
+            <div className={`font-medium ${position.realizedPnL && position.realizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              {formatCurrency(position.realizedPnL ?? 0)}
             </div>
           </div>
         </div>
@@ -194,7 +199,7 @@ export function PositionCard({ position, onManualExit, onPartialExit }: Position
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => onPartialExit?.(position.position_id, 50)}
+                onClick={() => onPartialExit?.(position.id, 50)}
                 className="flex-1"
               >
                 50% 매도
@@ -202,7 +207,7 @@ export function PositionCard({ position, onManualExit, onPartialExit }: Position
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => onPartialExit?.(position.position_id, 100)}
+                onClick={() => onPartialExit?.(position.id, 100)}
                 className="flex-1"
               >
                 전량 매도
@@ -210,11 +215,11 @@ export function PositionCard({ position, onManualExit, onPartialExit }: Position
             </div>
 
             {/* 긴급 매도 버튼 */}
-            {position.current_pnl_percent <= position.stop_loss_percent && (
+            {currentPnLPercent <= stopLossPercent && (
               <Button
                 variant="destructive"
                 size="sm"
-                onClick={() => onManualExit?.(position.position_id)}
+                onClick={() => onManualExit?.(position.id)}
                 className="w-full flex items-center space-x-2"
               >
                 <AlertTriangle className="w-4 h-4" />
@@ -225,25 +230,27 @@ export function PositionCard({ position, onManualExit, onPartialExit }: Position
         )}
 
         {/* 종료된 포지션 정보 */}
-        {position.status === 'closed' && position.exit_time && (
+        {position.status === 'closed' && position.exitTime && (
           <>
             <Separator />
             <div className="text-sm space-y-1">
               <div className="flex justify-between">
                 <span className="text-gray-500">매도가:</span>
                 <span className="font-medium">
-                  {position.exit_price ? formatCurrency(position.exit_price) : 'N/A'}
+                  {position.exitPrice ? formatCurrency(position.exitPrice) : 'N/A'}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">매도 시간:</span>
                 <span className="font-medium">
-                  {new Date(position.exit_time).toLocaleString('ko-KR')}
+                  {new Date(position.exitTime).toLocaleString('ko-KR')}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">매도 사유:</span>
-                <span className="font-medium">{position.exit_reason || 'N/A'}</span>
+                <span className="text-gray-500">실현손익:</span>
+                <span className={`font-medium ${position.realizedPnL && position.realizedPnL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {formatCurrency(position.realizedPnL ?? 0)}
+                </span>
               </div>
             </div>
           </>

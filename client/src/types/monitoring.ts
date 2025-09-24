@@ -132,7 +132,7 @@ export interface SessionHistoryResponse {
     triggered_count: number;
     is_running: boolean;
   };
-  history: any[]; // 향후 확장
+  history: unknown[]; // 향후 확장
 }
 
 export interface PerformanceStatsResponse {
@@ -311,7 +311,7 @@ export type MonitoringEventType =
 export interface MonitoringEvent {
   type: MonitoringEventType;
   timestamp: Date;
-  data: any;
+  data: unknown;
 }
 
 export type ThresholdValidationResult = {

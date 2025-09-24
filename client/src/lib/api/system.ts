@@ -3,7 +3,6 @@
  */
 
 import { apiClient } from './client';
-import { ApiResponse } from '@/types';
 
 export interface AuthStatus {
   authenticated: boolean;
@@ -50,7 +49,7 @@ export class SystemService {
         last_update: new Date().toISOString(),
         server_time: new Date().toISOString()
       };
-    } catch (error) {
+    } catch {
       return {
         api_connection: false,
         kis_api: false,
@@ -80,7 +79,7 @@ export class SystemService {
       console.log('🔄 SystemService: Starting KIS API connection test...');
       console.log('🌐 Making request to: /api/auth/test');
 
-      const response = await apiClient.get<{ success: boolean; message: string; test_result: any; timestamp: string }>('/api/auth/test');
+      const response = await apiClient.get<{ success: boolean; message: string; test_result: unknown; timestamp: string }>('/api/auth/test');
 
       console.log('📨 Raw API response:', response);
       console.log('✅ Response success:', response.success);

@@ -18,27 +18,34 @@ export default function Home() {
       phase: 'Filtering',
       timeRemaining: '25:30',
       progress: 65,
-      status: 'active'
+      status: 'active',
     },
     marketStatus: {
       isOpen: true,
       nextAction: 'Portfolio Building',
-      nextActionTime: '15:35'
+      nextActionTime: '15:35',
     },
     portfolioSummary: {
       totalValue: data.portfolio?.totalValue ?? 10000000,
       unrealizedPnL: data.portfolio?.unrealizedPnL ?? 150000,
       unrealizedPnLPercent: data.portfolio?.unrealizedPnLPercent ?? 1.5,
       positions: data.portfolio?.positions?.length ?? 5,
-      dayChange: data.portfolioPerformance?.dailyReturn ?? 75000
+      dayChange: data.portfolioPerformance?.dailyReturn ?? 75000,
     },
     todayStats: {
       filteredStocks: data.topStocks.length,
       selectedStocks: data.portfolio?.positions?.length ?? 0,
-      executedTrades: data.portfolio?.positions?.filter(p => p.status === 'active').length ?? 0,
-      avgScore: data.topStocks.length > 0 ?
-        data.topStocks.reduce((sum, stock) => sum + (stock.current_price || 0), 0) / data.topStocks.length : 72.5
-    }
+      executedTrades:
+        data.portfolio?.positions?.filter((p) => p.status === 'active')
+          .length ?? 0,
+      avgScore:
+        data.topStocks.length > 0
+          ? data.topStocks.reduce(
+              (sum, stock) => sum + (stock.currentPrice || 0),
+              0
+            ) / data.topStocks.length
+          : 72.5,
+    },
   };
 
   // 로딩 상태 표시

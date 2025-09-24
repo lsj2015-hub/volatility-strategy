@@ -2,7 +2,6 @@
 
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export interface BooleanFiltersProps {
   filters: Record<string, boolean>;

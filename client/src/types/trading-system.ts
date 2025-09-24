@@ -56,7 +56,7 @@ export interface BuySignal {
   price: number;
   quantity: number;
   reason: string;
-  condition_met: Record<string, any>;
+  condition_met: Record<string, unknown>;
   processed: boolean;
   created_at: string;
   processed_at?: string;
@@ -125,7 +125,7 @@ export interface ProcessBuySignalRequest {
   price: number;
   quantity: number;
   reason: string;
-  condition_met: Record<string, any>;
+  condition_met: Record<string, unknown>;
 }
 
 export interface UpdatePositionRequest {

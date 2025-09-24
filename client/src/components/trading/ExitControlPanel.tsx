@@ -13,9 +13,7 @@ import { Progress } from '@/components/ui/progress'
 import {
   AlertTriangle,
   Target,
-  Clock,
   DollarSign,
-  TrendingUp,
   TrendingDown,
   Settings,
   Zap,
@@ -40,25 +38,26 @@ export function ExitControlPanel({
   onEmergencyStop
 }: ExitControlPanelProps) {
   const [exitType, setExitType] = useState<'market' | 'limit'>('market')
-  const [limitPrice, setLimitPrice] = useState(position.current_price)
+  const [limitPrice, setLimitPrice] = useState(position.currentPrice)
   const [partialPercentage, setPartialPercentage] = useState([50])
-  const [newProfitTarget, setNewProfitTarget] = useState([position.target_profit_percent])
-  const [newStopLoss, setNewStopLoss] = useState([Math.abs(position.stop_loss_percent)])
+  const [newProfitTarget, setNewProfitTarget] = useState([5.0]) // 기본값 5% 목표
+  const [newStopLoss, setNewStopLoss] = useState([2.0]) // 기본값 2% 손절
   const [confirmEmergency, setConfirmEmergency] = useState(false)
 
-  const isProfitable = position.current_pnl > 0
-  const isNearTarget = position.current_pnl_percent >= position.target_profit_percent * 0.8
-  const isNearStopLoss = position.current_pnl_percent <= position.stop_loss_percent * 0.8
+  const currentPnLPercent = position.current_pnl_percent ?? position.unrealizedPnLPercent
+  const isProfitable = (position.current_pnl ?? position.unrealizedPnL) > 0
+  const isNearTarget = currentPnLPercent >= newProfitTarget[0] * 0.8
+  const isNearStopLoss = currentPnLPercent <= -newStopLoss[0] * 0.8
   const timeProgress = getTimeProgress()
 
   function getTimeProgress() {
-    if (!position.time_remaining) return 100
+    // 임시로 하드코딩된 값 사용 - 실제 구현에서는 position에서 가져와야 함
+    const maxHoldHours = 8 // 기본값: 8시간 최대 보유
+    const entryTime = new Date(position.entryTime)
+    const currentTime = new Date()
+    const elapsedHours = (currentTime.getTime() - entryTime.getTime()) / (1000 * 60 * 60)
 
-    const [hours, minutes] = position.time_remaining.split(':').map(Number)
-    const remainingMinutes = hours * 60 + minutes
-    const totalMinutes = position.max_hold_hours * 60
-
-    return Math.max(0, (remainingMinutes / totalMinutes) * 100)
+    return Math.max(0, Math.min(100, (elapsedHours / maxHoldHours) * 100))
   }
 
   const formatCurrency = (amount: number) => {
@@ -77,20 +76,20 @@ export function ExitControlPanel({
   const handlePartialExit = () => {
     if (onPartialExit) {
       const price = exitType === 'limit' ? limitPrice : undefined
-      onPartialExit(position.position_id, partialPercentage[0], exitType, price)
+      onPartialExit(position.id, partialPercentage[0], exitType, price)
     }
   }
 
   const handleFullExit = () => {
     if (onManualExit) {
       const price = exitType === 'limit' ? limitPrice : undefined
-      onManualExit(position.position_id, exitType, price)
+      onManualExit(position.id, exitType, price)
     }
   }
 
   const handleUpdateTargets = () => {
     if (onUpdateTargets) {
-      onUpdateTargets(position.position_id, {
+      onUpdateTargets(position.id, {
         profitTarget: newProfitTarget[0],
         stopLoss: -newStopLoss[0]
       })
@@ -99,13 +98,13 @@ export function ExitControlPanel({
 
   const handleEmergencyStop = () => {
     if (confirmEmergency && onEmergencyStop) {
-      onEmergencyStop(position.position_id)
+      onEmergencyStop(position.id)
       setConfirmEmergency(false)
     }
   }
 
   // 긴급 상황 감지
-  const isEmergency = isNearStopLoss || timeProgress < 10
+  const isEmergency = isNearStopLoss || timeProgress > 90
 
   return (
     <div className="space-y-6">
@@ -115,7 +114,7 @@ export function ExitControlPanel({
           <CardTitle className="flex items-center justify-between">
             <span>매도 제어판</span>
             <Badge variant={isProfitable ? "default" : "destructive"}>
-              {formatPercent(position.current_pnl_percent)}
+              {formatPercent(currentPnLPercent)}
             </Badge>
           </CardTitle>
         </CardHeader>
@@ -127,16 +126,16 @@ export function ExitControlPanel({
               <div>
                 <div className="text-sm text-gray-500">목표까지</div>
                 <div className="font-medium">
-                  {((position.target_profit_percent - position.current_pnl_percent) / position.target_profit_percent * 100).toFixed(1)}%
+                  {((newProfitTarget[0] - currentPnLPercent) / newProfitTarget[0] * 100).toFixed(1)}%
                 </div>
               </div>
             </div>
 
             <div className="flex items-center space-x-3">
-              <Timer className={`w-5 h-5 ${timeProgress < 30 ? 'text-red-600' : 'text-gray-400'}`} />
+              <Timer className={`w-5 h-5 ${timeProgress > 70 ? 'text-red-600' : 'text-gray-400'}`} />
               <div>
-                <div className="text-sm text-gray-500">남은 시간</div>
-                <div className="font-medium">{position.time_remaining || 'N/A'}</div>
+                <div className="text-sm text-gray-500">보유 시간</div>
+                <div className="font-medium">{timeProgress.toFixed(1)}%</div>
               </div>
             </div>
           </div>
@@ -156,7 +155,7 @@ export function ExitControlPanel({
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
                 {isNearStopLoss && "손절매 수준에 근접했습니다. "}
-                {timeProgress < 10 && "보유 시간이 거의 만료됩니다. "}
+                {timeProgress > 90 && "보유 시간이 거의 만료됩니다. "}
                 매도를 고려해보세요.
               </AlertDescription>
             </Alert>
@@ -201,13 +200,13 @@ export function ExitControlPanel({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setLimitPrice(position.current_price)}
+                  onClick={() => setLimitPrice(position.currentPrice)}
                 >
                   현재가
                 </Button>
               </div>
               <div className="text-sm text-gray-500">
-                현재가: {formatCurrency(position.current_price)}
+                현재가: {formatCurrency(position.currentPrice)}
               </div>
             </div>
           )}
@@ -245,7 +244,7 @@ export function ExitControlPanel({
               <div>
                 <span className="text-gray-500">예상 수익: </span>
                 <span className={`font-medium ${isProfitable ? 'text-green-600' : 'text-red-600'}`}>
-                  {formatCurrency(position.current_pnl * partialPercentage[0] / 100)}
+                  {formatCurrency((position.current_pnl ?? position.unrealizedPnL) * partialPercentage[0] / 100)}
                 </span>
               </div>
             </div>

@@ -48,3 +48,32 @@ export interface MarketOverview {
   totalVolume: number;
   marketStatus: 'open' | 'closed' | 'after-hours';
 }
+
+// Backend API response types
+export interface StockApiResponse {
+  symbol: string;
+  name: string;
+  current_price: number;
+  previous_close: number;
+  change: number;
+  change_percent: number;
+  volume: number;
+  market_cap?: number;
+  sector?: string;
+  industry?: string;
+}
+
+export interface VolumeRankingResponse {
+  symbol: string;
+  name: string;
+  volume: number;
+  price: number;
+  change_percent: number;
+}
+
+export interface StockPriceResponse {
+  symbol: string;
+  price: number;
+  timestamp: string;
+  volume?: number;
+}

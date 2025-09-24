@@ -28,7 +28,7 @@ export default function FilteringPage() {
     loadPreset
   } = useHydratedSettingsStore();
 
-  const { tradingMode } = useTradingModeStore();
+  const { mode: tradingMode } = useTradingModeStore();
   const { setSelectedStocks: setPortfolioStocks } = usePortfolioStore();
 
   const [filteredStocks, setFilteredStocks] = useState<FilteredStock[]>([]);
@@ -103,7 +103,7 @@ export default function FilteringPage() {
     const startTime = Date.now();
 
     try {
-      console.log(`Starting stock filtering with ${tradingMode?.is_mock ? 'mock' : 'real'} trading data`);
+      console.log(`Starting stock filtering with ${tradingMode?.is_mock_trading ? 'mock' : 'real'} trading data`);
 
       // 전체 주식 수 조회와 필터링을 병렬로 실행
       const [allStocksData, filteredStocksData] = await Promise.all([
@@ -127,7 +127,7 @@ export default function FilteringPage() {
       }
 
       setShowResults(true);
-      console.log(`Filter completed: ${filteredStocksData.length} stocks found using ${tradingMode?.is_mock ? 'mock' : 'real'} data`);
+      console.log(`Filter completed: ${filteredStocksData.length} stocks found using ${tradingMode?.is_mock_trading ? 'mock' : 'real'} data`);
     } catch (error) {
       console.error('Filtering failed:', error);
       setError(error instanceof Error ? error.message : 'Unknown error occurred');
@@ -172,7 +172,7 @@ export default function FilteringPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Stock Filtering</h1>
           <p className="text-muted-foreground">
-            Real-time filtering using {tradingMode?.is_mock ? 'mock trading' : 'real trading'} data
+            Real-time filtering using {tradingMode?.is_mock_trading ? 'mock trading' : 'real trading'} data
           </p>
           <div className="flex items-center space-x-2 mt-2">
             {activePreset ? (

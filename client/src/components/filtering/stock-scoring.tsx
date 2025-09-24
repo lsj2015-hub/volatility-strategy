@@ -43,7 +43,8 @@ export function StockScoring({ stocks }: StockScoringProps) {
 
   // Sector distribution
   const sectorCounts = stocks.reduce((acc, stock) => {
-    acc[stock.sector] = (acc[stock.sector] || 0) + 1;
+    const sector = stock.sector || 'Unknown';
+    acc[sector] = (acc[sector] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 
@@ -129,7 +130,11 @@ export function StockScoring({ stocks }: StockScoringProps) {
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ sector, percent }: any) => `${sector} (${((percent as number) * 100).toFixed(0)}%)`}
+                  label={(props: Record<string, unknown>) => {
+                    const sector = (props as { sector?: string }).sector || 'Unknown';
+                    const percent = (props as { percent?: number }).percent || 0;
+                    return `${sector} (${(percent * 100).toFixed(0)}%)`;
+                  }}
                   outerRadius={80}
                   fill="#8884d8"
                   dataKey="count"

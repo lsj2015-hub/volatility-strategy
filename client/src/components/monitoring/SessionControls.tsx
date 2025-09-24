@@ -5,14 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Play, Square, Settings, Clock, TrendingUp, AlertTriangle } from 'lucide-react';
 import type {
   MonitoringSessionStatus,
-  StartMonitoringRequest,
-  PHASE_LABELS
+  StartMonitoringRequest
 } from '@/types/monitoring';
 import type { FilteredStock } from '@/types/trading';
 
@@ -134,16 +132,10 @@ export function SessionControls({
       }
 
       console.log('🔄 Calling onStartSession with targets...');
-      const result = await onStartSession(portfolioTargets);
-      console.log('✅ Session start request completed with result:', result);
-
-      if (result === false) {
-        console.error('❌ Session start returned false - check error state');
-        alert('모니터링 세션 시작에 실패했습니다. 콘솔을 확인해주세요.');
-      } else {
-        console.log('✅ Session started successfully');
-        alert('모니터링 세션이 성공적으로 시작되었습니다!');
-      }
+      await onStartSession(portfolioTargets);
+      console.log('✅ Session start request completed');
+      console.log('✅ Session started successfully');
+      alert('모니터링 세션이 성공적으로 시작되었습니다!');
     } catch (err) {
       console.error('❌ Failed to start session:', err);
       alert(`세션 시작 중 오류가 발생했습니다: ${err instanceof Error ? err.message : '알 수 없는 오류'}`);
@@ -302,7 +294,7 @@ export function SessionControls({
 
               {portfolioTargets.length > 0 ? (
                 <div className="space-y-2">
-                  {portfolioTargets.map((target, index) => (
+                  {portfolioTargets.map((target) => (
                     <div key={target.symbol} className="flex items-center gap-3 p-3 border rounded-lg">
                       <div className="flex-1">
                         <div className="font-medium">{target.stock_name}</div>

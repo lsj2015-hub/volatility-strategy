@@ -8,7 +8,8 @@ import {
   Position,
   PortfolioAllocation,
   PortfolioPerformance,
-  ApiResponse
+  ApiResponse,
+  TradeExecutionResponse
 } from '@/types';
 
 export interface CreatePortfolioRequest {
@@ -80,14 +81,22 @@ export class PortfolioService {
   /**
    * 개별 거래 실행
    */
-  static async executeTrade(request: ExecuteTradeRequest): Promise<any> {
-    const response = await apiClient.post<any>('/api/portfolio/trade', request);
+  static async executeTrade(request: ExecuteTradeRequest): Promise<TradeExecutionResponse> {
+    const response = await apiClient.post<TradeExecutionResponse>('/api/portfolio/trade', request);
 
-    if (!response.success) {
+    if (!response.success || !response.data) {
       throw new Error(response.error || 'Failed to execute trade');
     }
 
     return response.data;
+  }
+
+  /**
+   * 모든 포지션 조회 (활성 + 종료)
+   */
+  static async getPositions(): Promise<ApiResponse<{ active: Position[]; closed: Position[] }>> {
+    const response = await apiClient.get<{ active: Position[]; closed: Position[] }>('/api/portfolio/positions');
+    return response;
   }
 
   /**

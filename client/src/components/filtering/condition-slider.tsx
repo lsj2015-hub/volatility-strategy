@@ -82,7 +82,11 @@ export function ConditionSlider({
         <div className="px-2">
           <Slider
             value={value}
-            onValueChange={onChange}
+            onValueChange={(values) => {
+              if (values.length >= 2) {
+                onChange([values[0], values[1]]);
+              }
+            }}
             min={min}
             max={max}
             step={step}

@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { BarChart3, TrendingUp, Calendar, Target, PieChart, LineChart } from 'lucide-react';
+import { BarChart3, Calendar, Target, PieChart, LineChart } from 'lucide-react';
 
 export default function AnalyticsPage() {
   // 시뮬레이션 데이터

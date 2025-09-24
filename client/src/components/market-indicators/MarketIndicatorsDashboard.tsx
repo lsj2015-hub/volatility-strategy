@@ -10,15 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { IndexCard } from './IndexCard';
 import { useMarketIndicators } from '@/hooks/useMarketIndicators';
-import {
-  RefreshCw,
-  Activity,
-  TrendingUp,
-  TrendingDown,
-  AlertCircle,
-  Wifi,
-  WifiOff
-} from 'lucide-react';
+import { RefreshCw, Activity, AlertCircle, Wifi, WifiOff } from 'lucide-react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 
@@ -36,10 +28,9 @@ export function MarketIndicatorsDashboard({
     loading,
     error,
     lastUpdated,
-    health,
     refresh,
     isConnected,
-    tradingMode
+    tradingMode,
   } = useMarketIndicators(refreshInterval);
 
   const [isRefreshing, setIsRefreshing] = useState(false);
